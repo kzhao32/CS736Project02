@@ -7,8 +7,6 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
-#include "datasource.h"
-
 #define MAGICNO 0xca11ab1e
 
 #define TOKEN_PATH ".token"
