@@ -16,7 +16,9 @@
 
 #define SQL_PATH "db.sqlite"
 #define SQL_MAXLEN 256
-#define SQL_CREATE_TABLE "create table tweets (timestamp integer, content text)"
+
+#define SQL_CREATE_TABLE	"create table if not exists tweets" \
+				"(timestamp integer, content text)"
 
 void fatal_error(const char *msg)
 {
