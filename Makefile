@@ -7,10 +7,10 @@ BIN=filler
 all: $(BIN)
 
 %.o: %.c
-	$(CC) $(CFLAGS) $< -c -o $@
+	$(CC) $(CFLAGS) $< $(LDFLAGS) -c -o $@
 
 %: %.o
-	$(CC) $(CFLAGS) $(LDFLAGS) $< -o $@
+	$(CC) $(CFLAGS) $< $(LDFLAGS) -o $@
 
 .PHONY: clean
 

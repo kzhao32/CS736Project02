@@ -16,7 +16,7 @@
 
 #define SQL_PATH "db.sqlite"
 #define SQL_MAXLEN 256
-#define SQL_CREATE_TABLE "create table tweets (row integer, timestamp integer, content text)"
+#define SQL_CREATE_TABLE "create table tweets (timestamp integer, content text)"
 
 void fatal_error(const char *msg)
 {
@@ -136,11 +136,8 @@ int main()
 		/* TODO: Collect tweets and insert into database */
 		char * time = "123";
 		char * content = "123qwde";
-		char * sql = "INSERT INTO TWEETS (ROW, TIMESTAMP, CONTENT) VALUES (1, 123, 'hardCodedContent');";
+		char * sql = "INSERT INTO TWEETS (TIMESTAMP, CONTENT) VALUES (123, 'hardCodedContent');";
 		rc = sqlite3_exec(db, sql, NULL, 0, NULL);
-		sql = "INSERT INTO TWEETS (ROW, TIMESTAMP, CONTENT) VALUES (2, 789, 'hardCodedRow2Content');";
-		rc = sqlite3_exec(db, sql, NULL, 0, NULL);
-		sql = "UPDATE TWEETS SET TIME=456, CONTENT='ALSOHARDCODED' WHERE ROW=1;";
 		//int errorCode = sqlite3_prepare(db, sql, 10000, &stmt, NULL);
 		//if (errorCode == 0) {
 		//	while (sqlite3_step(stmt) != SQLITE_DONE) {
@@ -148,7 +145,6 @@ int main()
 		//	}
 		//}
 		pass_token();
-		break;
 	}
 
 	close(comm_socket);
