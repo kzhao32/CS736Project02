@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-Wall -pedantic
+CFLAGS=-g -Wall -pedantic
 LDFLAGS=-lsqlite3
 OBJ=filler.o
 BIN=filler
