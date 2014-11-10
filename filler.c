@@ -4,22 +4,16 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <strings.h>
-#include <sqlite3.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 
 #define MAGICNO 0xca11ab1e
-
 #define TOKEN_PATH "token"
-
 #define COMM_ADDR INADDR_ANY
 #define COMM_PORT 2345
-
-#define SQL_PATH "db.sqlite"
-#define SQL_MAXLEN 256
-#define SQL_CREATE_TABLE	"create table if not exists tweets" \
-				"(row integer, json text)"
+#define BUF_PATH "cbuf"
+#define BUF_RSIZE 256
 
 /* TODO: Use req_init() to obtain list of nodes */
 const char* node_list[] = {	"localhost", "12345",
@@ -132,7 +126,7 @@ void pass_token(int port)
 
 int main(int argc, char **argv)
 {
-	sqlite3* db;
+	int buf_fd;
 	struct sockaddr_in comm_addr;
 	socklen_t comm_addr_len;
 	int comm_socket;
@@ -144,18 +138,12 @@ int main(int argc, char **argv)
 		fatal_error("Invalid argument");
 	}
 
-	rc = sqlite3_open(SQL_PATH, &db);
+	/* TODO: Call fallocate() if file doesn't already exist */
+	buf_fd = open(BUF_PATH, O_RDWR|O_CREAT, 0644);
 
-	if(rc != SQLITE_OK)
+	if(buf_fd < 0)
 	{
-		fatal_error("Failed to open database");
-	}
-
-	rc = sqlite3_exec(db, SQL_CREATE_TABLE, NULL, NULL, NULL);
-
-	if(rc != SQLITE_OK)
-	{
-		fatal_error("Failed to create table");
+		fatal_error("Failed to open buffer file");
 	}
 
 	comm_socket = socket(AF_INET, SOCK_STREAM, 0);
@@ -189,8 +177,7 @@ int main(int argc, char **argv)
 
 	while(!exit_flag)
 	{
-		sqlite3_stmt *stmt;
-		//wait_for_token(comm_socket, &comm_addr, &comm_addr_len);
+		wait_for_token(comm_socket, &comm_addr, &comm_addr_len);
 
 		/* TODO: Collect tweets and insert into database */
 		sleep(10);
@@ -201,8 +188,7 @@ int main(int argc, char **argv)
 	}
 
 	close(comm_socket);
-	sqlite3_close(db);
+	close(buf_fd);
 
 	return 0;
-	// adding comment
 }
