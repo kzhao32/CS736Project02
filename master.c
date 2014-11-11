@@ -4,26 +4,13 @@
 #include <stdio.h>
 #include <arpa/inet.h>
 
+#include "common.h"
 #include "list.h"
-
-struct node_list_entry
-{
-	int addr;
-	int port; /* TODO: Consider using short */
-};
-
-typedef struct node_list_entry node_list_entry;
-
-void fatal_error(const char *msg)
-{
-	fprintf(stderr, "%s\n", msg);
-
-	exit(1);
-}
 
 void handle_req(int fd, list *node_list)
 {
 	/* buf[0] -> IPv4 address, buf[1] -> port number */
+	list_node* node;
 	node_list_entry *entry;
 	int buf[2];
 	int rc;
@@ -32,7 +19,6 @@ void handle_req(int fd, list *node_list)
 
 	if(rc != sizeof(buf))
 	{
-		printf("%d %d\n", rc, sizeof(buf));
 		fatal_error("read() failed");
 	}
 
@@ -52,6 +38,23 @@ void handle_req(int fd, list *node_list)
 
 		free(buf);
 	}
+
+	node = node_list->head;
+
+	while(node)
+	{
+		write(fd, &(node->data), sizeof(node_list_entry));
+
+		node = node->next;
+	}
+
+	node = malloc(sizeof(node_list_entry));
+
+	/* Send a NULL so that the other side knows that we're done */
+	bzero(node, sizeof(node_list_entry));
+	write(fd, &(entry), sizeof(node_list_entry));
+
+	free(node);
 }
 
 int main(int argc, char **argv)

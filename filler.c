@@ -8,6 +8,8 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+#include "common.h"
+
 #define MAGICNO 0xca11ab1e
 #define TOKEN_PATH "token"
 #define COMM_ADDR INADDR_ANY
@@ -21,16 +23,28 @@ const char* node_list[] = {	"localhost", "12345",
 				"localhost", "12343",
 				NULL };
 
-void fatal_error(const char *msg)
+void req_init(struct sockaddr_in *addr, short self_port)
 {
-	fprintf(stderr, "%s\n", msg);
+	int fd;
+	int rc;
 
-	exit(1);
-}
+	fd = socket(AF_INET, SOCK_STREAM, 0);
 
-void req_init()
-{
-	/* TODO: Ask master for configuration info */
+	if(fd < 0)
+	{
+		fatal_error("Failed to create socket");
+	}
+
+	rc = connect(fd, (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
+
+	if(rc < 0)
+	{
+		fatal_error("connect() failed");
+	}
+
+	write(fd, &self_port, sizeof(short));
+
+	/* TODO: Read master's reply */
 }
 
 void wait_for_token(	int comm_socket,
@@ -56,7 +70,6 @@ void wait_for_token(	int comm_socket,
 
 	printf("READ\n");
 	rc = read(new_comm_socket, &buf, sizeof(buf));
-	printf("pREAD\n");
 
 	close(new_comm_socket);
 
@@ -120,23 +133,27 @@ void pass_token(int port)
 	}
 
 	close(next_socket);
-
-	/* TODO: Pass token to next node */
 }
 
 int main(int argc, char **argv)
 {
 	int buf_fd;
 	struct sockaddr_in comm_addr;
+	struct sockaddr_in master_addr;
 	socklen_t comm_addr_len;
 	int comm_socket;
 	int exit_flag;
 	int rc;
 
-	if(argc != 2)
+	if(argc != 3)
 	{
 		fatal_error("Invalid argument");
 	}
+
+	bzero(&master_addr, sizeof(struct sockaddr_in));
+	inet_pton(AF_INET, argv[1], &(master_addr.sin_addr));
+
+	master_addr.sin_port = atoi(argv[2]);
 
 	/* TODO: Call fallocate() if file doesn't already exist */
 	buf_fd = open(BUF_PATH, O_RDWR|O_CREAT, 0644);
@@ -157,7 +174,7 @@ int main(int argc, char **argv)
 	bzero(&comm_addr, comm_addr_len);
 
 	comm_addr.sin_family = AF_INET;
-	comm_addr.sin_port = htons(atoi(node_list[2*atoi(argv[1])+1]));
+	/* comm_addr.sin_port = htons(atoi(node_list[2*atoi(argv[1])+1])); */
 	comm_addr.sin_addr.s_addr = COMM_ADDR;
 
 	rc = bind(comm_socket, (struct sockaddr *)&comm_addr, comm_addr_len);
@@ -169,9 +186,19 @@ int main(int argc, char **argv)
 
 	listen(comm_socket, 1);
 
-	req_init();
+	req_init(&master_addr, comm_addr.sin_port);
 
-	printf("Listening on port: %s\n", node_list[2*atoi(argv[1])+1]);
+	{
+		char *buf = malloc(comm_addr_len);
+
+		getsockname(comm_socket, (struct sockaddr *)&comm_addr, &comm_addr_len);
+
+		printf(	"Listening on %s:%d\n",
+			inet_ntop(AF_INET, &comm_addr.sin_addr, buf, comm_addr_len),
+			ntohs(comm_addr.sin_port) );
+
+		free(buf);
+	}
 
 	exit_flag = 0;
 
