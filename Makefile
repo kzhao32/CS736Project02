@@ -1,7 +1,7 @@
 CC=gcc
 CFLAGS=-g -Wall -pedantic
 LDFLAGS=
-OBJ=filler.o master.o
+OBJ=filler.o master.o list.o
 BIN=filler master
 
 all: $(BIN)
@@ -9,8 +9,11 @@ all: $(BIN)
 %.o: %.c
 	$(CC) $(CFLAGS) $< $(LDFLAGS) -c -o $@
 
-%: %.o
-	$(CC) $(CFLAGS) $< $(LDFLAGS) -o $@
+filler: filler.o
+	$(CC) $(CFLAGS) $^ $(LDFLAGS) -o $@
+
+master: master.o list.o
+	$(CC) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
 .PHONY: clean
 

@@ -4,17 +4,7 @@
 #include <stdio.h>
 #include <arpa/inet.h>
 
-struct list_node
-{
-	struct list_node *next;
-	void *data;
-};
-
-struct list
-{
-	struct list_node *head;
-	struct list_node *tail;
-};
+#include "list.h"
 
 struct node_list_entry
 {
@@ -22,8 +12,6 @@ struct node_list_entry
 	int port; /* TODO: Consider using short */
 };
 
-typedef struct list_node list_node;
-typedef struct list list;
 typedef struct node_list_entry node_list_entry;
 
 void fatal_error(const char *msg)
@@ -31,51 +19,6 @@ void fatal_error(const char *msg)
 	fprintf(stderr, "%s\n", msg);
 
 	exit(1);
-}
-
-list *list_new()
-{
-	list *new_list = malloc(sizeof(list));
-
-	new_list->head = NULL;
-	new_list->tail = NULL;
-
-	return new_list;
-}
-
-void list_append(list* list, void *data)
-{
-	list_node *new_node = malloc(sizeof(list_node));
-
-	new_node->data = data;
-	new_node->next = NULL;
-
-	if(list->tail)
-	{
-		list->tail->next = new_node;
-	}
-
-	if(!list->head)
-	{
-		list->head = new_node;
-	}
-
-	list->tail = new_node;
-}
-
-void list_free(list *list)
-{
-	list_node *current = list->head;
-
-	while(current)
-	{
-		list_node *next = current->next;
-
-		free(current->data);
-		free(current);
-
-		current = next;
-	}
 }
 
 void handle_req(int fd, list *node_list)
