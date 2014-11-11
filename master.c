@@ -7,34 +7,61 @@
 #include "common.h"
 #include "list.h"
 
+void print_node(node_addr *node)
+{
+	char *buf = malloc(100);
+
+	printf(	"Node %s:%d\n",
+		inet_ntop(AF_INET, &(node->addr), buf, 100),
+		ntohs(node->port) );
+
+	free(buf);
+}
+
 void handle_req(int fd, list *node_list)
 {
 	/* buf[0] -> IPv4 address, buf[1] -> port number */
 	list_node* node;
-	node_list_entry *entry;
-	int buf[2];
+	node_addr *entry;
+	struct sockaddr_in client_addr;
+	socklen_t addr_len;
+	unsigned short buf;
 	int rc;
 
-	rc = read(fd, buf, sizeof(buf));
+	getsockname(fd, (struct sockaddr *)&client_addr, &addr_len);
+
+	{
+		char *buf = malloc(100);
+
+		printf(	"Peer %s:%d\n",
+			inet_ntop(AF_INET, &(client_addr.sin_addr.s_addr), buf, 100),
+			client_addr.sin_port );
+
+		free(buf);
+	}
+
+	rc = read(fd, &buf, sizeof(buf));
 
 	if(rc != sizeof(buf))
 	{
 		fatal_error("read() failed");
 	}
 
-	entry = malloc(sizeof(node_list_entry));
+	entry = malloc(sizeof(node_addr));
 
-	entry->addr = ntohl(buf[0]);
-	entry->port = ntohl(buf[1]);
+	entry->addr = client_addr.sin_addr.s_addr;
+	entry->port = buf;
+
+	printf("BUF: %d %hu\n", buf, ntohs(buf));
 
 	list_append(node_list, entry);
 
 	{
 		char *buf = malloc(100);
 
-		printf(	"Added node %s:%d\n",
+		printf(	"Added node %s:%hu\n",
 			inet_ntop(AF_INET, &(entry->addr), buf, 100),
-			entry->port );
+			ntohs(entry->port) );
 
 		free(buf);
 	}
@@ -43,18 +70,19 @@ void handle_req(int fd, list *node_list)
 
 	while(node)
 	{
-		write(fd, &(node->data), sizeof(node_list_entry));
+		write(fd, node->data, sizeof(node_addr));
+
+		print_node(node->data);
 
 		node = node->next;
 	}
 
-	node = malloc(sizeof(node_list_entry));
-
 	/* Send a NULL so that the other side knows that we're done */
-	bzero(node, sizeof(node_list_entry));
-	write(fd, &(entry), sizeof(node_list_entry));
+	entry = calloc(1, sizeof(node_addr));
 
-	free(node);
+	write(fd, entry, sizeof(node_addr));
+
+	free(entry);
 }
 
 int main(int argc, char **argv)

@@ -9,6 +9,7 @@
 #include <netinet/in.h>
 
 #include "common.h"
+#include "list.h"
 
 #define MAGICNO 0xca11ab1e
 #define TOKEN_PATH "token"
@@ -17,16 +18,42 @@
 #define BUF_PATH "cbuf"
 #define BUF_RSIZE 256
 
-/* TODO: Use req_init() to obtain list of nodes */
-const char* node_list[] = {	"localhost", "12345",
-				"localhost", "12344",
-				"localhost", "12343",
-				NULL };
+void print_node(node_addr *node)
+{
+	char *buf = malloc(100);
 
-void req_init(struct sockaddr_in *addr, short self_port)
+	printf(	"Node %s:%d\n",
+		inet_ntop(AF_INET, &(node->addr), buf, 100),
+		ntohs(node->port) );
+
+	free(buf);
+}
+
+int read_all(int fd, void *buf, size_t count)
+{
+	int rc = 0;
+
+	while(rc != -1 && count > 0)
+	{
+		count -= rc;
+
+		rc = read(fd, buf, count);
+	}
+
+	return (rc == -1)?-1:0;
+}
+
+/* TODO: Use req_init() to obtain list of nodes */
+void req_init(list *node_list, struct sockaddr_in *addr, unsigned short self_port)
 {
 	int fd;
 	int rc;
+	int done;
+	node_addr *node;
+
+	addr->sin_family = AF_INET;
+
+	printf("MASTER: %s:%d\n", inet_ntoa(addr->sin_addr), addr->sin_port);
 
 	fd = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -35,16 +62,41 @@ void req_init(struct sockaddr_in *addr, short self_port)
 		fatal_error("Failed to create socket");
 	}
 
-	rc = connect(fd, (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
+	rc = connect(fd, (struct sockaddr *)addr, sizeof(struct sockaddr_in));
 
 	if(rc < 0)
 	{
 		fatal_error("connect() failed");
 	}
 
-	write(fd, &self_port, sizeof(short));
+	write(fd, &self_port, sizeof(unsigned short));
 
-	/* TODO: Read master's reply */
+	done = 0;
+
+	do
+	{
+		node = malloc(sizeof(node_addr));
+
+		read_all(fd, node, sizeof(node_addr));
+
+		if(node->addr != 0 || node->port != 0)
+		{
+			printf("ADDR: %d:%d\n", node->addr, node->port);
+			print_node(node);
+
+			list_append(node_list, node);
+		}
+		else
+		{
+			done = 1;
+		}
+	}
+	while(!done);
+
+	/* Last malloc() wil be unused because the last node sent by the server
+	 * will be the sentinel.
+	 */
+	free(node);
 }
 
 void wait_for_token(	int comm_socket,
@@ -85,6 +137,7 @@ void wait_for_token(	int comm_socket,
 	}
 
 	rc = open(TOKEN_PATH, O_RDONLY|O_CREAT, 0666);
+
 	printf("Create token file\n");
 
 	if(rc < 0)
@@ -141,6 +194,7 @@ int main(int argc, char **argv)
 	struct sockaddr_in comm_addr;
 	struct sockaddr_in master_addr;
 	socklen_t comm_addr_len;
+	list *node_list;
 	int comm_socket;
 	int exit_flag;
 	int rc;
@@ -150,10 +204,13 @@ int main(int argc, char **argv)
 		fatal_error("Invalid argument");
 	}
 
+	node_list = list_new();
+
 	bzero(&master_addr, sizeof(struct sockaddr_in));
 	inet_pton(AF_INET, argv[1], &(master_addr.sin_addr));
 
-	master_addr.sin_port = atoi(argv[2]);
+	master_addr.sin_family = AF_INET;
+	master_addr.sin_port = htons(atoi(argv[2]));
 
 	/* TODO: Call fallocate() if file doesn't already exist */
 	buf_fd = open(BUF_PATH, O_RDWR|O_CREAT, 0644);
@@ -186,8 +243,6 @@ int main(int argc, char **argv)
 
 	listen(comm_socket, 1);
 
-	req_init(&master_addr, comm_addr.sin_port);
-
 	{
 		char *buf = malloc(comm_addr_len);
 
@@ -200,6 +255,8 @@ int main(int argc, char **argv)
 		free(buf);
 	}
 
+	req_init(node_list, &master_addr, comm_addr.sin_port);
+
 	exit_flag = 0;
 
 	while(!exit_flag)
@@ -209,13 +266,15 @@ int main(int argc, char **argv)
 		/* TODO: Collect tweets and insert into database */
 		sleep(10);
 
-		pass_token(atoi(node_list[2*(atoi(argv[1])+1)+1]));
+		/*pass_token(atoi(node_list[2*(atoi(argv[1])+1)+1]));*/
 		printf("Remove token file\n");
 		unlink(TOKEN_PATH);
 	}
 
 	close(comm_socket);
 	close(buf_fd);
+
+	list_free(node_list);
 
 	return 0;
 }

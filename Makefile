@@ -9,10 +9,10 @@ all: $(BIN)
 %.o: %.c
 	$(CC) $(CFLAGS) $< $(LDFLAGS) -c -o $@
 
-filler: filler.o common.o
+filler: filler.o common.o list.o
 	$(CC) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
-master: master.o list.o common.o
+master: master.o common.o list.o
 	$(CC) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
 .PHONY: clean
