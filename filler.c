@@ -18,6 +18,16 @@
 #define BUF_PATH "cbuf"
 #define BUF_RSIZE 256
 
+struct filler_ctx
+{
+	struct sockaddr_in master_addr;
+	struct node_addr *self_addr;
+	struct node_addr *next_addr;
+	struct list *node_list;
+};
+
+typedef struct filler_ctx filler_ctx;
+
 void print_node(node_addr *node)
 {
 	char *buf = malloc(100);
@@ -43,17 +53,34 @@ int read_all(int fd, void *buf, size_t count)
 	return (rc == -1)?-1:0;
 }
 
-/* TODO: Use req_init() to obtain list of nodes */
-void req_init(list *node_list, struct sockaddr_in *addr, unsigned short self_port)
+node_addr *get_next_node(filler_ctx *ctx)
+{
+	list_node *node = ctx->node_list->head;
+	node_addr *addr = node->data;
+
+	/* Iterate the list until own addr and port is found */
+	while(node
+	&& (addr->addr != ctx->self_addr->addr
+	||  addr->port != ctx->self_addr->port))
+	{
+		node = node->next;
+		addr = node->data;
+	}
+
+	/* Select the next node in the list as the next node, if own entry is at
+	 * the end of the list, choose the first entry
+	 */
+	return node->next?node->next->data:ctx->node_list->head->data;
+}
+
+void req_init(filler_ctx *ctx, unsigned short self_port)
 {
 	int fd;
 	int rc;
 	int done;
 	node_addr *node;
 
-	addr->sin_family = AF_INET;
-
-	printf("MASTER: %s:%d\n", inet_ntoa(addr->sin_addr), addr->sin_port);
+	printf("MASTER: %s:%d\n", inet_ntoa(ctx->master_addr.sin_addr), ctx->master_addr.sin_port);
 
 	fd = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -62,7 +89,9 @@ void req_init(list *node_list, struct sockaddr_in *addr, unsigned short self_por
 		fatal_error("Failed to create socket");
 	}
 
-	rc = connect(fd, (struct sockaddr *)addr, sizeof(struct sockaddr_in));
+	rc = connect(	fd,
+			(struct sockaddr *)&ctx->master_addr,
+			sizeof(struct sockaddr_in) );
 
 	if(rc < 0)
 	{
@@ -81,10 +110,9 @@ void req_init(list *node_list, struct sockaddr_in *addr, unsigned short self_por
 
 		if(node->addr != 0 || node->port != 0)
 		{
-			printf("ADDR: %d:%d\n", node->addr, node->port);
 			print_node(node);
 
-			list_append(node_list, node);
+			list_append(ctx->node_list, node);
 		}
 		else
 		{
@@ -92,6 +120,15 @@ void req_init(list *node_list, struct sockaddr_in *addr, unsigned short self_por
 		}
 	}
 	while(!done);
+
+	/* Set IP address and port information for self. This information is
+	 * available as the last item in the list returned from server.
+	 */
+	ctx->self_addr = ctx->node_list->tail->data;
+	ctx->next_addr = get_next_node(ctx);
+
+	printf("Next node: ");
+	print_node(ctx->next_addr);
 
 	/* Last malloc() wil be unused because the last node sent by the server
 	 * will be the sentinel.
@@ -149,7 +186,8 @@ void wait_for_token(	int comm_socket,
 	close(rc);
 }
 
-void pass_token(int port)
+
+void pass_token(filler_ctx *ctx)
 {
 	struct sockaddr_in next_addr;
 	socklen_t next_addr_len;
@@ -162,11 +200,12 @@ void pass_token(int port)
 
 	bzero(&next_addr, next_addr_len);
 
-	printf("PASS: %d\n", port);
-	inet_pton(AF_INET, "127.0.0.1", &next_addr.sin_addr);
+	printf("PASS: ");
+	print_node(ctx->next_addr);
 
-	next_addr.sin_port = htons(port);
 	next_addr.sin_family = AF_INET;
+	next_addr.sin_addr.s_addr = ctx->next_addr->addr;
+	next_addr.sin_port = ctx->next_addr->port;
 
 	rc = connect(next_socket, (struct sockaddr *)&next_addr, next_addr_len);
 
@@ -191,10 +230,9 @@ void pass_token(int port)
 int main(int argc, char **argv)
 {
 	int buf_fd;
+	filler_ctx ctx;
 	struct sockaddr_in comm_addr;
-	struct sockaddr_in master_addr;
 	socklen_t comm_addr_len;
-	list *node_list;
 	int comm_socket;
 	int exit_flag;
 	int rc;
@@ -204,13 +242,13 @@ int main(int argc, char **argv)
 		fatal_error("Invalid argument");
 	}
 
-	node_list = list_new();
+	ctx.node_list = list_new();
 
-	bzero(&master_addr, sizeof(struct sockaddr_in));
-	inet_pton(AF_INET, argv[1], &(master_addr.sin_addr));
+	bzero(&ctx.master_addr, sizeof(struct sockaddr_in));
+	inet_pton(AF_INET, argv[1], &(ctx.master_addr.sin_addr));
 
-	master_addr.sin_family = AF_INET;
-	master_addr.sin_port = htons(atoi(argv[2]));
+	ctx.master_addr.sin_family = AF_INET;
+	ctx.master_addr.sin_port = htons(atoi(argv[2]));
 
 	/* TODO: Call fallocate() if file doesn't already exist */
 	buf_fd = open(BUF_PATH, O_RDWR|O_CREAT, 0644);
@@ -231,7 +269,6 @@ int main(int argc, char **argv)
 	bzero(&comm_addr, comm_addr_len);
 
 	comm_addr.sin_family = AF_INET;
-	/* comm_addr.sin_port = htons(atoi(node_list[2*atoi(argv[1])+1])); */
 	comm_addr.sin_addr.s_addr = COMM_ADDR;
 
 	rc = bind(comm_socket, (struct sockaddr *)&comm_addr, comm_addr_len);
@@ -255,7 +292,7 @@ int main(int argc, char **argv)
 		free(buf);
 	}
 
-	req_init(node_list, &master_addr, comm_addr.sin_port);
+	req_init(&ctx, comm_addr.sin_port);
 
 	exit_flag = 0;
 
@@ -264,17 +301,15 @@ int main(int argc, char **argv)
 		wait_for_token(comm_socket, &comm_addr, &comm_addr_len);
 
 		/* TODO: Collect tweets and insert into database */
-		sleep(10);
+		sleep(5);
 
-		/*pass_token(atoi(node_list[2*(atoi(argv[1])+1)+1]));*/
+		pass_token(&ctx);
 		printf("Remove token file\n");
 		unlink(TOKEN_PATH);
 	}
 
 	close(comm_socket);
 	close(buf_fd);
-
-	list_free(node_list);
 
 	return 0;
 }
