@@ -6,6 +6,7 @@
 #include <strings.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
+#include <sys/wait.h>
 #include <netinet/in.h>
 
 #include "common.h"
@@ -298,10 +299,46 @@ int main(int argc, char **argv)
 
 	while(!exit_flag)
 	{
+		int pid;
+		int rc;
+
 		wait_for_token(comm_socket, &comm_addr, &comm_addr_len);
 
-		/* TODO: Collect tweets and insert into database */
-		sleep(5);
+		printf("Collecting data...\n");
+
+		pid = fork();
+
+		printf("PID: %d\n", pid);
+
+		if(pid == -1)
+		{
+			fatal_error("fork() failed");
+		}
+		else if(pid == 0)
+		{
+			rc = execlp(	"java",
+					"java",
+					"-jar",
+					"PrintSampleStream.jar",
+					BUF_PATH,
+					"100",
+					NULL );
+
+			if(rc == -1)
+			{
+				fatal_error("exec() failed");
+			}
+			printf("FOO\n");
+
+			exit(1);
+		}
+
+		wait(&rc);
+
+		if(rc != 0)
+		{
+			fatal_error("Collector process exited abnormally");
+		}
 
 		pass_token(&ctx);
 		printf("Remove token file\n");
