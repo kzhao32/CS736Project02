@@ -1,34 +1,102 @@
+#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <strings.h>
-#include <sqlite3.h>
+#include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+#include "common.h"
+#include "list.h"
+
 #define MAGICNO 0xca11ab1e
-
-#define TOKEN_PATH ".token"
-
+#define TOKEN_PATH "token"
 #define COMM_ADDR INADDR_ANY
 #define COMM_PORT 2345
+#define BUF_PATH "cbuf"
+#define BUF_RSIZE 256
 
-#define SQL_PATH "db.sqlite"
-#define SQL_MAXLEN 256
-#define SQL_CREATE_TABLE	"create table if not exists tweets" \
-				"(row integer, json text)"
-
-void fatal_error(const char *msg)
+void print_node(node_addr *node)
 {
-	fprintf(stderr, "%s\n", msg);
+	char *buf = malloc(100);
 
-	exit(1);
+	printf(	"Node %s:%d\n",
+		inet_ntop(AF_INET, &(node->addr), buf, 100),
+		ntohs(node->port) );
+
+	free(buf);
 }
 
-void req_init()
+int read_all(int fd, void *buf, size_t count)
 {
-	/* TODO: Ask master for configuration info */
+	int rc = 0;
+
+	while(rc != -1 && count > 0)
+	{
+		count -= rc;
+
+		rc = read(fd, buf, count);
+	}
+
+	return (rc == -1)?-1:0;
+}
+
+/* TODO: Use req_init() to obtain list of nodes */
+void req_init(list *node_list, struct sockaddr_in *addr, unsigned short self_port)
+{
+	int fd;
+	int rc;
+	int done;
+	node_addr *node;
+
+	addr->sin_family = AF_INET;
+
+	printf("MASTER: %s:%d\n", inet_ntoa(addr->sin_addr), addr->sin_port);
+
+	fd = socket(AF_INET, SOCK_STREAM, 0);
+
+	if(fd < 0)
+	{
+		fatal_error("Failed to create socket");
+	}
+
+	rc = connect(fd, (struct sockaddr *)addr, sizeof(struct sockaddr_in));
+
+	if(rc < 0)
+	{
+		fatal_error("connect() failed");
+	}
+
+	write(fd, &self_port, sizeof(unsigned short));
+
+	done = 0;
+
+	do
+	{
+		node = malloc(sizeof(node_addr));
+
+		read_all(fd, node, sizeof(node_addr));
+
+		if(node->addr != 0 || node->port != 0)
+		{
+			printf("ADDR: %d:%d\n", node->addr, node->port);
+			print_node(node);
+
+			list_append(node_list, node);
+		}
+		else
+		{
+			done = 1;
+		}
+	}
+	while(!done);
+
+	/* Last malloc() wil be unused because the last node sent by the server
+	 * will be the sentinel.
+	 */
+	free(node);
 }
 
 void wait_for_token(	int comm_socket,
@@ -45,11 +113,14 @@ void wait_for_token(	int comm_socket,
 					comm_addr,
 					comm_addr_len );
 
+	printf("Connection accepted\n");
+
 	if(new_comm_socket < 0)
 	{
 		fatal_error("socket() failed");
 	}
 
+	printf("READ\n");
 	rc = read(new_comm_socket, &buf, sizeof(buf));
 
 	close(new_comm_socket);
@@ -59,47 +130,94 @@ void wait_for_token(	int comm_socket,
 		fatal_error("read() failed");
 	}
 
-	if(buf != MAGICNO)
+	/* TODO: Re-enable MAGICNO check */
+	if(buf != MAGICNO && 0)
 	{
 		fatal_error("Magic number mismatch");
 	}
 
-	rc = open(TOKEN_PATH, O_RDONLY|O_CREAT);
+	rc = open(TOKEN_PATH, O_RDONLY|O_CREAT, 0666);
+
+	printf("Create token file\n");
 
 	if(rc < 0)
 	{
+		perror(NULL);
 		fatal_error("Failed to create token file");
 	}
 
 	close(rc);
 }
 
-void pass_token()
+void pass_token(int port)
 {
-	/* TODO: Pass token to next node */
+	struct sockaddr_in next_addr;
+	socklen_t next_addr_len;
+	int next_socket;
+	int buf;
+	int rc;
+
+	next_socket = socket(AF_INET, SOCK_STREAM, 0);
+	next_addr_len = sizeof(next_addr);
+
+	bzero(&next_addr, next_addr_len);
+
+	printf("PASS: %d\n", port);
+	inet_pton(AF_INET, "127.0.0.1", &next_addr.sin_addr);
+
+	next_addr.sin_port = htons(port);
+	next_addr.sin_family = AF_INET;
+
+	rc = connect(next_socket, (struct sockaddr *)&next_addr, next_addr_len);
+
+	if(rc < 0)
+	{
+		perror(NULL);
+		fatal_error("Can't connect to the next node");
+	}
+
+	buf = MAGICNO;
+	rc = write(next_socket, &buf, sizeof(buf));
+
+	if(rc != sizeof(buf))
+	{
+		perror(NULL);
+		fatal_error("write() failed");
+	}
+
+	close(next_socket);
 }
 
-int main()
+int main(int argc, char **argv)
 {
-	sqlite3* db;
+	int buf_fd;
 	struct sockaddr_in comm_addr;
+	struct sockaddr_in master_addr;
 	socklen_t comm_addr_len;
+	list *node_list;
 	int comm_socket;
 	int exit_flag;
 	int rc;
 
-	rc = sqlite3_open(SQL_PATH, &db);
-
-	if(rc != SQLITE_OK)
+	if(argc != 3)
 	{
-		fatal_error("Failed to open database");
+		fatal_error("Invalid argument");
 	}
 
-	rc = sqlite3_exec(db, SQL_CREATE_TABLE, NULL, NULL, NULL);
+	node_list = list_new();
 
-	if(rc != SQLITE_OK)
+	bzero(&master_addr, sizeof(struct sockaddr_in));
+	inet_pton(AF_INET, argv[1], &(master_addr.sin_addr));
+
+	master_addr.sin_family = AF_INET;
+	master_addr.sin_port = htons(atoi(argv[2]));
+
+	/* TODO: Call fallocate() if file doesn't already exist */
+	buf_fd = open(BUF_PATH, O_RDWR|O_CREAT, 0644);
+
+	if(buf_fd < 0)
 	{
-		fatal_error("Failed to create table");
+		fatal_error("Failed to open buffer file");
 	}
 
 	comm_socket = socket(AF_INET, SOCK_STREAM, 0);
@@ -113,7 +231,7 @@ int main()
 	bzero(&comm_addr, comm_addr_len);
 
 	comm_addr.sin_family = AF_INET;
-	comm_addr.sin_port = htons(COMM_PORT);
+	/* comm_addr.sin_port = htons(atoi(node_list[2*atoi(argv[1])+1])); */
 	comm_addr.sin_addr.s_addr = COMM_ADDR;
 
 	rc = bind(comm_socket, (struct sockaddr *)&comm_addr, comm_addr_len);
@@ -125,36 +243,38 @@ int main()
 
 	listen(comm_socket, 1);
 
-	req_init();
+	{
+		char *buf = malloc(comm_addr_len);
+
+		getsockname(comm_socket, (struct sockaddr *)&comm_addr, &comm_addr_len);
+
+		printf(	"Listening on %s:%d\n",
+			inet_ntop(AF_INET, &comm_addr.sin_addr, buf, comm_addr_len),
+			ntohs(comm_addr.sin_port) );
+
+		free(buf);
+	}
+
+	req_init(node_list, &master_addr, comm_addr.sin_port);
 
 	exit_flag = 0;
 
 	while(!exit_flag)
 	{
-		sqlite3_stmt *stmt;
-		//wait_for_token(comm_socket, &comm_addr, &comm_addr_len);
+		wait_for_token(comm_socket, &comm_addr, &comm_addr_len);
 
 		/* TODO: Collect tweets and insert into database */
-		char * time = "123";
-		char * content = "123qwde";
-		char * sql = "INSERT INTO TWEETS (ROW, TIMESTAMP, CONTENT) VALUES (1, 123, 'hardCodedContent');";
-		rc = sqlite3_exec(db, sql, NULL, 0, NULL);
-		sql = "INSERT INTO TWEETS (ROW, TIMESTAMP, CONTENT) VALUES (2, 789, 'hardCodedRow2Content');";
-		rc = sqlite3_exec(db, sql, NULL, 0, NULL);
-		sql = "UPDATE TWEETS SET TIME=456, CONTENT='ALSOHARDCODED' WHERE ROW=1;";
-		//int errorCode = sqlite3_prepare(db, sql, 10000, &stmt, NULL);
-		//if (errorCode == 0) {
-		//	while (sqlite3_step(stmt) != SQLITE_DONE) {
-		//		rc = sqlite3_exec(db, sql, NULL, 0, NULL);
-		//	}
-		//}
-		pass_token();
-		break;
+		sleep(10);
+
+		/*pass_token(atoi(node_list[2*(atoi(argv[1])+1)+1]));*/
+		printf("Remove token file\n");
+		unlink(TOKEN_PATH);
 	}
 
 	close(comm_socket);
-	sqlite3_close(db);
+	close(buf_fd);
+
+	list_free(node_list);
 
 	return 0;
-	// adding comment
 }

@@ -1,16 +1,19 @@
 CC=gcc
-CFLAGS=-Wall -pedantic
-LDFLAGS=-lsqlite3
-OBJ=filler.o
-BIN=filler
+CFLAGS=-g -Wall -pedantic
+LDFLAGS=
+OBJ=filler.o master.o list.o common.o
+BIN=filler master
 
 all: $(BIN)
 
 %.o: %.c
 	$(CC) $(CFLAGS) $< $(LDFLAGS) -c -o $@
 
-%: %.o
-	$(CC) $(CFLAGS) $< $(LDFLAGS) -o $@
+filler: filler.o common.o list.o
+	$(CC) $(CFLAGS) $^ $(LDFLAGS) -o $@
+
+master: master.o common.o list.o
+	$(CC) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
 .PHONY: clean
 
