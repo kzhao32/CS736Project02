@@ -19,9 +19,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 
 import twitter4j.StallWarning;
 import twitter4j.Status;
@@ -60,18 +57,19 @@ public final class PrintSampleStream {
     	}
     	final RandomAccessFile outputFile = new RandomAccessFile(new File(args[0]), "rwd");
 
-    	final int tweetTimeLength = 13; //"1415927476669".length();
-    	final int screenNameLength = 15;
-    	final int tweetTextLength = 140;
-    	int totalTweetLength = tweetTimeLength + screenNameLength + tweetTextLength + "\n".length();
+    	final int timeLength = 13 + "\0".length(); //"1415927476669".length() == 13;
+    	final int screenNameLength = 15 + "\0".length();
+    	final int textLength = 140 + "\0".length();
+    	final int numberOfFollowersLength = 9 + "\0".length();
+    	int totalTweetLength = timeLength + screenNameLength + textLength + numberOfFollowersLength + "\n".length();
     	final int totalNumberOfTweets = Integer.parseInt(args[1]);
     	long oldestDate = Long.MAX_VALUE;
     	int indexOfOldestDate = 0;
     	for (int i = 0; i < totalNumberOfTweets; ++i) {
-    		byte[] bytesRead = new byte[tweetTimeLength];
+    		byte[] bytesRead = new byte[timeLength];
     		try {
     			outputFile.seek(i * totalTweetLength);
-    			outputFile.read(bytesRead, 0, tweetTimeLength); // string to store, starting store, number of bytes to read
+    			outputFile.read(bytesRead, 0, timeLength); // string to store, starting store, number of bytes to read
     			long currentDate = Long.parseLong(new String(bytesRead, "UTF-8"));
 //    			System.out.println(currentDate);
     			if (currentDate < oldestDate) {
@@ -86,7 +84,9 @@ public final class PrintSampleStream {
     	try {
     		System.out.println("numberOfTweets = " + numberOfTweets);
 			outputFile.seek(indexOfOldestDate * totalTweetLength);
-		} catch (IOException e) { }
+		} catch (IOException e) { 
+			e.printStackTrace();
+		}
     	
 //    	final String beforeSource = "rel=\"nofollow\">";
 //    	final String afterSource = "</a>";
@@ -96,12 +96,27 @@ public final class PrintSampleStream {
     		@Override
     		public void onStatus(Status status) {
     			
-    			String time = lengthFormat("" + status.getTimeStamp(), 13);
-    			String screenName = lengthFormat(status.getUser().getScreenName(), screenNameLength);
-    			String tweetText = lengthFormat(status.getText(), tweetTextLength);
+//    			String time = lengthFormat("" + status.getTimeStamp(), 13);
+//    			String screenName = lengthFormat(status.getUser().getScreenName(), screenNameLength);
+//    			String tweetText = lengthFormat(status.getText(), tweetTextLength);
+//    			
+    			String time = "" + status.getTimeStamp() + '\0';
+    			String screenName = status.getUser().getScreenName() + '\0';
+    			String tweet = status.getText() + '\0';
+    			String numberOfFollowers = "" + status.getUser().getFollowersCount() + '\0';
     			
     			try {
-    				outputFile.writeBytes(time + screenName + tweetText + "\n");
+    				outputFile.seek(numberOfTweets * totalTweetLength);
+    				outputFile.writeBytes(time);
+    				outputFile.seek(numberOfTweets * totalTweetLength + timeLength);
+    				outputFile.writeBytes(screenName);
+    				outputFile.seek(numberOfTweets * totalTweetLength + timeLength + screenNameLength);
+    				outputFile.writeBytes(tweet);
+    				outputFile.seek(numberOfTweets * totalTweetLength + timeLength + screenNameLength + textLength);
+    				outputFile.writeBytes(numberOfFollowers);
+    				outputFile.seek(numberOfTweets * totalTweetLength + timeLength + screenNameLength + textLength + numberOfFollowersLength);
+    				outputFile.writeBytes("\n");
+//    				outputFile.writeBytes(time + screenName + tweetText + "\n");
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
@@ -111,6 +126,7 @@ public final class PrintSampleStream {
     				try {
 						outputFile.close();
 					} catch (IOException e) {
+						e.printStackTrace();
 					}
     				System.exit(0);
     			}
