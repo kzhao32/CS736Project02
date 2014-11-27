@@ -11,6 +11,7 @@ struct list
 {
 	struct list_node *head;
 	struct list_node *tail;
+	size_t size;
 };
 
 typedef struct list_node list_node;
