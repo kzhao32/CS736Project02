@@ -49,8 +49,10 @@ public final class PrintSampleStream {
 	static int numberOfTweets = 0;
 	static int maxLength = 0;
     public static void main(String[] args) throws TwitterException, FileNotFoundException {
-//    	String[] argsInput = { "output.txt", "100" };
-//    	args = argsInput;
+    	if (args.length == 0) {
+    		String[] argsInput = { "output.txt", "100" };
+        	args = argsInput;
+    	}
     	if (args.length != 2) {
     		System.err.println("Usage: java PrintSampleStream.java <output> <numberOfTweets>");
     		System.exit(1);
