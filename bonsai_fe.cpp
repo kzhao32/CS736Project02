@@ -8,13 +8,18 @@ int main(int argc, char **argv)
 {
 	Network* net;
 	Communicator* comm;
-	Stream *stream;
+	Stream* stream;
 	PacketPtr packet;
 	int tag;
 
 	if(argc != 3)
 	{
-		std::cerr << "Invalid argument" << std::endl;
+		std::cerr	<< "Usage: "
+				<< argv[0]
+				<< " <topology file> <backend_exe>"
+				<< std::endl;
+
+		return -1;
 	}
 
 	tag = FirstApplicationTag;
