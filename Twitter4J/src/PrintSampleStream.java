@@ -61,7 +61,7 @@ public final class PrintSampleStream {
     	final int screenNameLength = 15 + "\0".length();
     	final int textLength = 140 + "\0".length();
     	final int numberOfFollowersLength = 9 + "\0".length();
-    	int totalTweetLength = timeLength + screenNameLength + textLength + numberOfFollowersLength + "\n".length();
+    	final int totalTweetLength = timeLength + screenNameLength + textLength + numberOfFollowersLength + "\n".length();
     	final int totalNumberOfTweets = Integer.parseInt(args[1]);
     	long oldestDate = Long.MAX_VALUE;
     	int indexOfOldestDate = 0;
