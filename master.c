@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <arpa/inet.h>
 
+#include "def.h"
 #include "common.h"
 #include "list.h"
 
@@ -18,71 +19,128 @@ void print_node(node_addr *node)
 	free(buf);
 }
 
-void handle_req(int fd, list *node_list)
+void handle_init_req(int fd, list *node_list, int node_count)
 {
-	/* buf[0] -> IPv4 address, buf[1] -> port number */
-	list_node* node;
 	node_addr *entry;
-	struct sockaddr_in client_addr;
 	socklen_t addr_len;
-	unsigned short buf;
+	struct sockaddr_in client_addr;
+	unsigned short port;
+	int cmd;
 	int rc;
 
-	getsockname(fd, (struct sockaddr *)&client_addr, &addr_len);
-
+	if(node_list->size < node_count)
 	{
-		char *buf = malloc(100);
+		rc = read(fd, &port, sizeof(port));
 
-		printf(	"Peer %s:%d\n",
-			inet_ntop(AF_INET, &(client_addr.sin_addr.s_addr), buf, 100),
-			client_addr.sin_port );
+		if(rc != sizeof(port))
+		{
+			fatal_error("read() failed");
+		}
 
-		free(buf);
+		addr_len = sizeof(struct sockaddr_in);
+
+		getsockname(fd, (struct sockaddr *)&client_addr, &addr_len);
+
+		entry = malloc(sizeof(node_addr));
+
+		/* Zero the memory block so that valgrind wouldn't complain */
+		bzero(entry, sizeof(node_addr));
+
+		entry->addr = client_addr.sin_addr.s_addr;
+		entry->port = port;
+
+		list_append(node_list, entry);
+
+		{
+			char *buf = malloc(100);
+
+			printf(	"Added node %s:%hu\n",
+				inet_ntop(AF_INET, &(entry->addr), buf, 100),
+				ntohs(entry->port) );
+
+			free(buf);
+		}
+
+		cmd = OKAY_CMD;
+
+		write(fd, &cmd, sizeof(cmd));
+
+		/* Send back the requesting node's own address */
+		write(fd, entry, sizeof(entry));
 	}
+	else
+	{
+		cmd = FULL_CMD;
 
-	rc = read(fd, &buf, sizeof(buf));
+		write(fd, &cmd, sizeof(cmd));
+	}
+}
 
-	if(rc != sizeof(buf))
+void handle_list_req(int fd, list *node_list, int node_count)
+{
+	int cmd;
+
+	if(node_list->size == node_count)
+	{
+		list_node *node;
+		node_addr *sentinel;
+
+		cmd = OKAY_CMD;
+
+		write(fd, &cmd, sizeof(cmd));
+
+		node = node_list->head;
+
+		while(node)
+		{
+			write(fd, node->data, sizeof(node_addr));
+			print_node(node->data);
+
+			node = node->next;
+		}
+
+		/* Send a NULL so that the other side knows that we're done */
+		sentinel = calloc(1, sizeof(node_addr));
+
+		write(fd, sentinel, sizeof(node_addr));
+
+		free(sentinel);
+	}
+	else
+	{
+		printf("LIST WAIT\n");
+		cmd = WAIT_CMD;
+
+		write(fd, &cmd, sizeof(cmd));
+	}
+}
+
+void handle_req(int fd, list *node_list, int node_count)
+{
+	int cmd;
+	int rc;
+
+	rc = read(fd, &cmd, sizeof(cmd));
+
+	if(rc != sizeof(cmd))
 	{
 		fatal_error("read() failed");
 	}
 
-	entry = malloc(sizeof(node_addr));
-
-	entry->addr = client_addr.sin_addr.s_addr;
-	entry->port = buf;
-
-	printf("BUF: %d %hu\n", buf, ntohs(buf));
-
-	list_append(node_list, entry);
-
+	if(cmd == INIT_CMD)
 	{
-		char *buf = malloc(100);
-
-		printf(	"Added node %s:%hu\n",
-			inet_ntop(AF_INET, &(entry->addr), buf, 100),
-			ntohs(entry->port) );
-
-		free(buf);
+		printf("INIT\n");
+		handle_init_req(fd, node_list, node_count);
 	}
-
-	node = node_list->head;
-
-	while(node)
+	else if(cmd == LIST_CMD)
 	{
-		write(fd, node->data, sizeof(node_addr));
-
-		print_node(node->data);
-
-		node = node->next;
+		printf("LIST\n");
+		handle_list_req(fd, node_list, node_count);
 	}
-
-	/* Send a NULL so that the other side knows that we're done */
-	entry = calloc(1, sizeof(node_addr));
-
-	write(fd, entry, sizeof(node_addr));
-
-	free(entry);
+	else
+	{
+		printf("Unrecognized command received");
+	}
 }
 
 int main(int argc, char **argv)
@@ -93,9 +151,10 @@ int main(int argc, char **argv)
 	int comm_socket;
 	int rc;
 
-	if(argc != 3)
+	if(argc != 4)
 	{
-		printf("Usage: %s <bind addr> <bind port>\n", argv[0]);
+		printf(	"Usage: %s <bind addr> <bind port> <node count>\n",
+			argv[0] );
 
 		fatal_error("Invalid argument");
 	}
@@ -129,6 +188,7 @@ int main(int argc, char **argv)
 		char *buf = malloc(comm_addr_len);
 
 		getsockname(comm_socket, (struct sockaddr *)&comm_addr, &comm_addr_len);
+
 		printf(	"Listening on %s:%d\n",
 			inet_ntop(AF_INET, &comm_addr.sin_addr, buf, comm_addr_len),
 			ntohs(comm_addr.sin_port) );
@@ -145,13 +205,11 @@ int main(int argc, char **argv)
 						&comm_addr,
 						&comm_addr_len );
 
-		handle_req(new_comm_socket, node_list);
-
+		handle_req(new_comm_socket, node_list, atoi(argv[3]));
 		close(new_comm_socket);
 	}
 
 	close(comm_socket);
-
 	list_free(node_list);
 
 	return 0;

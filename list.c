@@ -8,6 +8,7 @@ list *list_new()
 
 	new_list->head = NULL;
 	new_list->tail = NULL;
+	new_list->size = 0;
 
 	return new_list;
 }
@@ -30,6 +31,7 @@ void list_append(list* list, void *data)
 	}
 
 	list->tail = new_node;
+	list->size++;
 }
 
 void list_free(list *list)
