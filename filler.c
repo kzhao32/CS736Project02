@@ -239,6 +239,8 @@ int main(int argc, char **argv)
 
 	if(argc != 3)
 	{
+		printf("Usage: %s <master addr> <master port>\n", argv[0]);
+
 		fatal_error("Invalid argument");
 	}
 
