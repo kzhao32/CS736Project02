@@ -9,6 +9,7 @@
 #include <sys/wait.h>
 #include <netinet/in.h>
 
+#include "def.h"
 #include "common.h"
 #include "list.h"
 
@@ -31,13 +32,20 @@ typedef struct filler_ctx filler_ctx;
 
 void print_node(node_addr *node)
 {
-	char *buf = malloc(100);
+	if(node)
+	{
+		char *buf = malloc(100);
 
-	printf(	"Node %s:%d\n",
-		inet_ntop(AF_INET, &(node->addr), buf, 100),
-		ntohs(node->port) );
+		printf(	"Node %s:%d\n",
+			inet_ntop(AF_INET, &(node->addr), buf, 100),
+			ntohs(node->port) );
 
-	free(buf);
+		free(buf);
+	}
+	else
+	{
+		printf("NULL\n");
+	}
 }
 
 int read_all(int fd, void *buf, size_t count)
@@ -57,31 +65,39 @@ int read_all(int fd, void *buf, size_t count)
 node_addr *get_next_node(filler_ctx *ctx)
 {
 	list_node *node = ctx->node_list->head;
-	node_addr *addr = node->data;
+	node_addr *addr = node?node->data:NULL;
+	node_addr *result = NULL;
 
 	/* Iterate the list until own addr and port is found */
 	while(node
+	&& ctx->self_addr
 	&& (addr->addr != ctx->self_addr->addr
 	||  addr->port != ctx->self_addr->port))
 	{
 		node = node->next;
-		addr = node->data;
+		addr = node?node->data:NULL;
 	}
 
 	/* Select the next node in the list as the next node, if own entry is at
 	 * the end of the list, choose the first entry
 	 */
-	return node->next?node->next->data:ctx->node_list->head->data;
+	if(node && ctx->self_addr)
+	{
+		result = node->next?node->next->data:ctx->node_list->head->data;
+	}
+
+	return result;
 }
 
-void req_init(filler_ctx *ctx, unsigned short self_port)
+int req_init(filler_ctx *ctx, unsigned short self_port)
 {
 	int fd;
 	int rc;
-	int done;
-	node_addr *node;
+	int cmd;
 
-	printf("MASTER: %s:%d\n", inet_ntoa(ctx->master_addr.sin_addr), ctx->master_addr.sin_port);
+	printf(	"MASTER: %s:%d\n",
+		inet_ntoa(ctx->master_addr.sin_addr),
+		ctx->master_addr.sin_port );
 
 	fd = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -99,42 +115,99 @@ void req_init(filler_ctx *ctx, unsigned short self_port)
 		fatal_error("connect() failed");
 	}
 
+	cmd = INIT_CMD;
+
+	write(fd, &cmd, sizeof(cmd));
 	write(fd, &self_port, sizeof(unsigned short));
+	read(fd, &cmd, sizeof(cmd));
 
-	done = 0;
-
-	do
+	if(cmd == OKAY_CMD)
 	{
-		node = malloc(sizeof(node_addr));
+		printf("INIT OKAY\n");
 
-		read_all(fd, node, sizeof(node_addr));
+		ctx->self_addr = malloc(sizeof(node_addr));
 
-		if(node->addr != 0 || node->port != 0)
-		{
-			print_node(node);
-
-			list_append(ctx->node_list, node);
-		}
-		else
-		{
-			done = 1;
-		}
+		/* Read own address from server */
+		read(fd, ctx->self_addr, sizeof(node_addr));
 	}
-	while(!done);
+	else
+	{
+		printf("INIT FULL\n");
+	}
 
-	/* Set IP address and port information for self. This information is
-	 * available as the last item in the list returned from server.
-	 */
-	ctx->self_addr = ctx->node_list->tail->data;
-	ctx->next_addr = get_next_node(ctx);
+	return (cmd == OKAY_CMD)-1;
+}
 
-	printf("Next node: ");
-	print_node(ctx->next_addr);
+int req_list(filler_ctx *ctx)
+{
+	int fd;
+	int rc;
+	int cmd;
+	int done;
+	node_addr *node;
 
-	/* Last malloc() wil be unused because the last node sent by the server
-	 * will be the sentinel.
-	 */
-	free(node);
+	fd = socket(AF_INET, SOCK_STREAM, 0);
+
+	if(fd < 0)
+	{
+		fatal_error("Failed to create socket");
+	}
+
+	rc = connect(	fd,
+			(struct sockaddr *)&ctx->master_addr,
+			sizeof(struct sockaddr_in) );
+
+	if(rc < 0)
+	{
+		fatal_error("connect() failed");
+	}
+
+	cmd = LIST_CMD;
+
+	write(fd, &cmd, sizeof(cmd));
+	read(fd, &cmd, sizeof(cmd));
+
+	if(cmd == OKAY_CMD)
+	{
+		printf("LIST OKAY\n");
+
+		done = 0;
+
+		do
+		{
+			node = malloc(sizeof(node_addr));
+
+			read_all(fd, node, sizeof(node_addr));
+
+			if(node->addr != 0 || node->port != 0)
+			{
+				print_node(node);
+
+				list_append(ctx->node_list, node);
+			}
+			else
+			{
+				done = 1;
+			}
+		}
+		while(!done);
+
+		ctx->next_addr = get_next_node(ctx);
+
+		printf("Next node: ");
+		print_node(ctx->next_addr);
+
+		/* Last malloc() wil be unused because the last node sent by the
+		 * server will be the sentinel.
+		 */
+		free(node);
+	}
+	else
+	{
+		printf("LIST WAIT\n");
+	}
+
+	return (cmd == OKAY_CMD)-1;
 }
 
 void wait_for_token(	int comm_socket,
@@ -240,9 +313,13 @@ int main(int argc, char **argv)
 
 	if(argc != 3)
 	{
+		printf("Usage: %s <master addr> <master port>\n", argv[0]);
+
 		fatal_error("Invalid argument");
 	}
 
+	ctx.self_addr = NULL;
+	ctx.next_addr = NULL;
 	ctx.node_list = list_new();
 
 	bzero(&ctx.master_addr, sizeof(struct sockaddr_in));
@@ -294,6 +371,14 @@ int main(int argc, char **argv)
 	}
 
 	req_init(&ctx, comm_addr.sin_port);
+
+	while(req_list(&ctx) != 0)
+	{
+		sleep(1);
+		printf("LIST POLL\n");
+	}
+
+	printf("LIST DONE\n");
 
 	exit_flag = 0;
 
