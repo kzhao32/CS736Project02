@@ -6,5 +6,6 @@
 #define OKAY_CMD 0xb047104d
 #define WAIT_CMD 0xb01dface
 #define FULL_CMD 0xf01d4b1e
+#define TOKEN_CMD 0x5ca1ab1e
 
 #endif

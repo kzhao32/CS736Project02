@@ -19,6 +19,46 @@ void print_node(node_addr *node)
 	free(buf);
 }
 
+void assign_token(node_addr *target)
+{
+	struct sockaddr_in target_addr;
+	socklen_t target_addr_len;
+	int target_socket;
+	int cmd;
+	int rc;
+
+	target_socket = socket(AF_INET, SOCK_STREAM, 0);
+	target_addr_len = sizeof(target_addr);
+
+	bzero(&target_addr, target_addr_len);
+
+	printf("ASSIGN: ");
+	print_node(target);
+
+	target_addr.sin_family = AF_INET;
+	target_addr.sin_addr.s_addr = target->addr;
+	target_addr.sin_port = target->port;
+
+	rc = connect(target_socket, (struct sockaddr *)&target_addr, target_addr_len);
+
+	if(rc < 0)
+	{
+		perror(NULL);
+		fatal_error("Can't connect to the next node");
+	}
+
+	cmd = TOKEN_CMD;
+	rc = write(target_socket, &cmd, sizeof(cmd));
+
+	if(rc != sizeof(cmd))
+	{
+		perror(NULL);
+		fatal_error("write() failed");
+	}
+
+	close(target_socket);
+}
+
 void handle_init_req(int fd, list *node_list, int node_count)
 {
 	node_addr *entry;
@@ -67,6 +107,11 @@ void handle_init_req(int fd, list *node_list, int node_count)
 
 		/* Send back the requesting node's own address */
 		write(fd, entry, sizeof(entry));
+
+		if(node_list->size == node_count)
+		{
+			assign_token(node_list->head->data);
+		}
 	}
 	else
 	{

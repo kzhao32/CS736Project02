@@ -13,7 +13,6 @@
 #include "common.h"
 #include "list.h"
 
-#define MAGICNO 0xca11ab1e
 #define TOKEN_PATH "token"
 #define COMM_ADDR INADDR_ANY
 #define COMM_PORT 2345
@@ -241,8 +240,8 @@ void wait_for_token(	int comm_socket,
 		fatal_error("read() failed");
 	}
 
-	/* TODO: Re-enable MAGICNO check */
-	if(buf != MAGICNO && 0)
+	/* TODO: Re-enable TOKEN_CMD check */
+	if(buf != TOKEN_CMD && 0)
 	{
 		fatal_error("Magic number mismatch");
 	}
@@ -289,7 +288,7 @@ void pass_token(filler_ctx *ctx)
 		fatal_error("Can't connect to the next node");
 	}
 
-	buf = MAGICNO;
+	buf = TOKEN_CMD;
 	rc = write(next_socket, &buf, sizeof(buf));
 
 	if(rc != sizeof(buf))
