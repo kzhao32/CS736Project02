@@ -5,6 +5,7 @@ OBJ=filler.o master.o list.o common.o
 BIN=filler master
 
 all: $(BIN)
+	$(MAKE) -C collector
 
 %.o: %.c
 	$(CC) $(CFLAGS) $< $(LDFLAGS) -c -o $@
@@ -19,3 +20,4 @@ master: master.o common.o list.o
 
 clean:
 	rm -fv $(OBJ) $(BIN)
+	$(MAKE) -C collector clean

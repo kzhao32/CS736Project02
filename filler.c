@@ -403,7 +403,7 @@ int main(int argc, char **argv)
 			rc = execlp(	"java",
 					"java",
 					"-jar",
-					"PrintSampleStream.jar",
+					"collector.jar",
 					BUF_PATH,
 					"100",
 					NULL );
