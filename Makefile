@@ -9,7 +9,7 @@ BIN=filler master bonsai_fe bonsai_be followerCount_fe followerCount_be
 OBJ=	filler.o master.o bonsai_fe.o bonsai_be.o list.o common.o \
 	followerCount_fe.o followerCount_be.o
 
-all: LDFLAGS+=-ldl -lpthread -lmrnet -lxplat
+all: LDFLAGS+=-pthread -lmrnet -lxplat -ldl
 all: $(BIN) $(SO)
 	$(MAKE) -C collector
 
