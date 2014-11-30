@@ -17,7 +17,6 @@ int main(int argc, char **argv)
 {
 	Stream* stream = NULL;
 	PacketPtr packet;
-	int pid;
 	int tag;
 	int rc;
 
@@ -27,7 +26,9 @@ int main(int argc, char **argv)
 	}
 
 	Network* net = Network::CreateNetworkBE(argc, argv);
+	
 	/*
+	int pid;
 	pid = fork();
 	
 	if(pid == 0)
@@ -49,21 +50,44 @@ int main(int argc, char **argv)
 		}
 		switch(tag) {
 			case PROT_STARTPROC: {
+				char * keyword;
+				packet->unpack("%s", &keyword);
+				std::cout << "keywords unpacked are " << keyword << std::endl;
+				char * keywordTokens = strtok(keyword, " ");
+				std::vector<std::string> keywords;
+				while(keywordTokens) {
+					keywords.push_back(keywordTokens);
+					keywordTokens = strtok(NULL, " ");
+				}
 				int followerCount = 0;
 				FILE * fd = fopen("/tmp/bonsai.dat", "r");
-				char screenName[screenNameLength];
+				char text[textLength];
 				char numberOfFollowers[numberOfFollowersLength];
-				for (int i = 0; ; ++i) {
-					fseek(fd, i * totalTweetLength + timeLength, SEEK_SET);
-					fread(screenName, screenNameLength, 1, fd);
-					fseek(fd, i * totalTweetLength + timeLength + screenNameLength + textLength, SEEK_SET);
-					fread(numberOfFollowers, numberOfFollowersLength, 1, fd);
-					if (feof(fd)) {
-						break;
+				if (fd) {
+					for (int i = 0; ; ++i) {
+						fseek(fd, i * totalTweetLength + timeLength + screenNameLength, SEEK_SET);
+						fread(text, textLength, 1, fd);
+						fseek(fd, i * totalTweetLength + timeLength + screenNameLength + textLength, SEEK_SET);
+						fread(numberOfFollowers, numberOfFollowersLength, 1, fd);
+						if (feof(fd)) {
+							break;
+						}
+						std::string textString(text);
+						if (keywords.size() == 0) {
+							followerCount += strtoll(numberOfFollowers, NULL, 10);
+						}
+						for (unsigned int j = 0; j < keywords.size(); ++j) {
+							if (textString.find(keywords[j]) != std::string::npos) {
+								followerCount += strtoll(numberOfFollowers, NULL, 10);
+								break;
+							}
+						}
+						
 					}
-					followerCount += strtoll(numberOfFollowers, NULL, 10);
+					fclose(fd);
+				} else {
+					std::cout << "error opening file: /tmp/bonsai.dat" << std::endl;
 				}
-				fclose(fd);
 				fprintf(stderr, "Number of users found: %d\n", followerCount);
 				if( stream->send(tag, "%d", followerCount) == -1 ) {
 					fprintf( stderr, "BE: stream::send(%%d) failure in PROT_SUM\n" );
