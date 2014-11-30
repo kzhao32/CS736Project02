@@ -408,7 +408,7 @@ int main(int argc, char **argv)
 					"-jar",
 					"collector.jar",
 					BUF_PATH,
-					"100",
+					"5000",
 					NULL );
 
 			if(rc == -1)
