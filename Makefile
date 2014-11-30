@@ -1,11 +1,12 @@
 CXX=g++
 CC=gcc
 CFLAGS=-g -Wall -pedantic
-LDFLAGS=-std=c++11 -pthread -lmrnet -lxplat -ldl
+LDFLAGS=
 OBJ=filler.o master.o bonsai_fe.o bonsai_be.o list.o common.o followerCount_fe.o followerCount_be.o
 SO=followerCount_filter.so
 BIN=filler master bonsai_fe bonsai_be followerCount_fe followerCount_be
 
+all: LDFLAGS+=-std=c++11 -pthread -lmrnet -lxplat -ldl
 all: $(BIN) $(SO)
 	$(MAKE) -C collector
 

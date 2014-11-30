@@ -17,7 +17,7 @@
 #define TOKEN_PATH "token"
 #define COMM_ADDR INADDR_ANY
 #define COMM_PORT 2345
-#define BUF_PATH "cbuf"
+#define BUF_PATH "/tmp/bonsai.dat"
 #define BUF_RSIZE 256
 
 struct filler_ctx
@@ -408,7 +408,7 @@ int main(int argc, char **argv)
 					"-jar",
 					"collector.jar",
 					BUF_PATH,
-					"100",
+					"5000",
 					NULL );
 
 			if(rc == -1)

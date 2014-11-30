@@ -52,7 +52,7 @@ int main(int argc, char **argv)
 			case PROT_STARTPROC: {
 				char * keyword;
 				packet->unpack("%s", &keyword);
-				std::cout << "keywords unpacked are " << keyword << std::endl;
+				std::cout << "keywords unpacked are: " << keyword << std::endl;
 				char * keywordTokens = strtok(keyword, " ");
 				std::vector<std::string> keywords;
 				while(keywordTokens) {
