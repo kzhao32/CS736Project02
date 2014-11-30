@@ -33,7 +33,7 @@ int main(int argc, char **argv)
 	const char * so_file = argv[3];
 	int keywordsLength = 0;
 	for(int i = 4; i < argc; i++) {
-		std::cout << "argv[i].length is " << strlen(argv[i]) << std::endl;
+		//std::cout << "argv[i].length is " << strlen(argv[i]) << std::endl;
 		keywordsLength += strlen(argv[i]) + 1;
 	}
 	char * keywords = (char*) malloc(keywordsLength); 
@@ -41,7 +41,7 @@ int main(int argc, char **argv)
 		strcat(keywords, argv[i]);
 		strcat(keywords, " ");
 	}
-	std::cout << "keywords to be sent are " << keywords << std::endl;
+	std::cout << "keywords to be sent are: " << keywords << std::endl;
 	saw_failure = false;
 	
 	Network * net = Network::CreateNetworkFE( topology_file, backend_exe, NULL );
