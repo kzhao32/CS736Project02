@@ -17,7 +17,7 @@
 #define TOKEN_PATH "token"
 #define COMM_ADDR INADDR_ANY
 #define COMM_PORT 2345
-#define BUF_PATH "cbuf"
+#define BUF_PATH "/tmp/bonsai.dat"
 #define BUF_RSIZE 256
 
 struct filler_ctx
