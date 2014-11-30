@@ -46,5 +46,5 @@ master: master.o common.o list.o
 .PHONY: clean
 
 clean:
-	rm -fv $(OBJ) $(BIN)
+	rm -fv $(OBJ) $(BIN) $(SO)
 	$(MAKE) -C collector clean
