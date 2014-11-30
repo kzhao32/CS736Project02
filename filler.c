@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <strings.h>
+#include <netdb.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
@@ -96,7 +97,7 @@ int req_init(filler_ctx *ctx, unsigned short self_port)
 
 	printf(	"MASTER: %s:%d\n",
 		inet_ntoa(ctx->master_addr.sin_addr),
-		ctx->master_addr.sin_port );
+		ntohs(ctx->master_addr.sin_port) );
 
 	fd = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -322,10 +323,12 @@ int main(int argc, char **argv)
 	ctx.node_list = list_new();
 
 	bzero(&ctx.master_addr, sizeof(struct sockaddr_in));
-	inet_pton(AF_INET, argv[1], &(ctx.master_addr.sin_addr));
 
 	ctx.master_addr.sin_family = AF_INET;
 	ctx.master_addr.sin_port = htons(atoi(argv[2]));
+
+	ctx.master_addr.sin_addr
+		= *((struct in_addr *)gethostbyname(argv[1])->h_addr_list[0]);
 
 	/* TODO: Call fallocate() if file doesn't already exist */
 	buf_fd = open(BUF_PATH, O_RDWR|O_CREAT, 0644);
