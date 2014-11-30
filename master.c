@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <netdb.h>
 #include <arpa/inet.h>
 
 #include "def.h"
@@ -218,7 +219,8 @@ int main(int argc, char **argv)
 	comm_addr.sin_family = AF_INET;
 	comm_addr.sin_port = htons(atoi(argv[2]));
 
-	inet_pton(AF_INET, argv[1], &comm_addr.sin_addr.s_addr);
+	comm_addr.sin_addr
+		= *((struct in_addr *)gethostbyname(argv[1])->h_addr_list[0]);
 
 	rc = bind(comm_socket, (struct sockaddr *)&comm_addr, comm_addr_len);
 

@@ -1,7 +1,7 @@
 CXX=g++
 CC=gcc
 CFLAGS=-g -Wall -pedantic
-LDFLAGS=-ldl -lpthread -lmrnet -lxplat
+LDFLAGS=#-ldl -lpthread -lmrnet -lxplat
 OBJ=filler.o master.o bonsai_fe.o bonsai_be.o list.o common.o
 BIN=filler master bonsai_fe bonsai_be
 
