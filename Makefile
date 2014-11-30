@@ -1,7 +1,6 @@
 CXX=g++
 CC=gcc
 CFLAGS=-g -Wall -pedantic
-<<<<<<< HEAD
 CXXFLAGS=$(CFLAGS) -std=c++11
 LDFLAGS=
 SO=followerCount_filter.so
@@ -11,14 +10,6 @@ OBJ=	filler.o master.o bonsai_fe.o bonsai_be.o list.o common.o \
 	followerCount_fe.o followerCount_be.o
 
 all: LDFLAGS+=-pthread -lmrnet -lxplat -ldl
-=======
-LDFLAGS=
-OBJ=filler.o master.o bonsai_fe.o bonsai_be.o list.o common.o followerCount_fe.o followerCount_be.o
-SO=followerCount_filter.so
-BIN=filler master bonsai_fe bonsai_be followerCount_fe followerCount_be
-
-all: LDFLAGS+=-std=c++11 -pthread -lmrnet -lxplat -ldl
->>>>>>> 6756cb518b44d457e8bd36a5ff7e33f000aead38
 all: $(BIN) $(SO)
 	$(MAKE) -C collector
 
