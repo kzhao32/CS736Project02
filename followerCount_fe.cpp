@@ -15,6 +15,7 @@ void Failure_Callback( Event* evt, void* )
         (evt->get_Type() == TopologyEvent::TOPOL_REMOVE_NODE) )
         saw_failure = true;
 }
+
 int main(int argc, char **argv)
 {
 	int followerCount = 0;
@@ -23,13 +24,24 @@ int main(int argc, char **argv)
 	
 	if(argc < 4)
 	{
-		fprintf(stderr, "Usage: %s <topology file> <backend_exe> <so_file>\n", argv[0]);
+		fprintf(stderr, "Usage: %s <topology file> <backend_exe> <so_file> [<keyword1> <keyword2> <keyword3> ...]\n", argv[0]);
 		exit(-1);
 	}
 	
 	const char * topology_file = argv[1];
 	const char * backend_exe = argv[2];
 	const char * so_file = argv[3];
+	int keywordsLength = 0;
+	for(int i = 4; i < argc; i++) {
+		std::cout << "argv[i].length is " << strlen(argv[i]) << std::endl;
+		keywordsLength += strlen(argv[i]) + 1;
+	}
+	char * keywords = (char*) malloc(keywordsLength); 
+	for(int i = 4; i < argc; i++) {
+		strcat(keywords, argv[i]);
+		strcat(keywords, " ");
+	}
+	std::cout << "keywords to be sent are " << keywords << std::endl;
 	saw_failure = false;
 	
 	Network * net = Network::CreateNetworkFE( topology_file, backend_exe, NULL );
@@ -59,7 +71,7 @@ int main(int argc, char **argv)
 	Communicator * comm_BC = net->get_BroadcastCommunicator( );
 	Stream * stream = net->new_Stream( comm_BC, filter_id, SFILTER_WAITFORALL );
 	tag = PROT_STARTPROC;
-	if( stream->send( tag, "") == -1 ){
+	if( stream->send( tag, "%s", keywords) == -1 ){
 		fprintf( stderr, "stream::send() failure\n" );
 		return -1;
         }
