@@ -79,7 +79,7 @@ void handle_init_req(int fd, list *node_list, int node_count)
 
 		addr_len = sizeof(struct sockaddr_in);
 
-		getsockname(fd, (struct sockaddr *)&client_addr, &addr_len);
+		getpeername(fd, (struct sockaddr *)&client_addr, &addr_len);
 
 		entry = malloc(sizeof(node_addr));
 
