@@ -96,7 +96,7 @@ int req_init(filler_ctx *ctx, unsigned short self_port)
 
 	printf(	"MASTER: %s:%d\n",
 		inet_ntoa(ctx->master_addr.sin_addr),
-		ctx->master_addr.sin_port );
+		ntohs(ctx->master_addr.sin_port) );
 
 	fd = socket(AF_INET, SOCK_STREAM, 0);
 
