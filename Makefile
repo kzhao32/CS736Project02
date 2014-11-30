@@ -1,7 +1,7 @@
 CXX=g++
 CC=gcc
 CFLAGS=-g -Wall -pedantic
-LDFLAGS=
+LDFLAGS=-ldl -lpthread -lmrnet -lxplat
 OBJ=filler.o master.o bonsai_fe.o bonsai_be.o list.o common.o
 BIN=filler master bonsai_fe bonsai_be
 
@@ -13,6 +13,9 @@ ringonly: filler master
 
 %.o: %.c
 	$(CC) $(CFLAGS) $< $(LDFLAGS) -c -o $@
+
+%.o: %.cpp
+	$(CXX) $(CFLAGS) $< $(LDFLAGS) -c -o $@
 
 bonsai_fe: bonsai_fe.o
 	$(CXX) $(CFLAGS) $^ $(LDFLAGS) -o $@
