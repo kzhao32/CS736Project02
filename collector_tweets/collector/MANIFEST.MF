@@ -1,0 +1,2 @@
+Main-Class: collector
+Class-Path: twitter4j-core.jar twitter4j-stream.jar

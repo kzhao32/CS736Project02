@@ -11,10 +11,10 @@ OBJ=	filler.o master.o bonsai_fe.o bonsai_be.o list.o common.o \
 
 all: LDFLAGS+=-pthread -lmrnet -lxplat -ldl
 all: $(BIN) $(SO)
-	$(MAKE) -C collector
+	$(MAKE) -C collector_tweets
 
 ringonly: filler master
-	$(MAKE) -C collector
+	$(MAKE) -C collector_tweets
 
 %.o: %.c
 	$(CC) $(CFLAGS) $< $(LDFLAGS) -c -o $@
@@ -47,4 +47,4 @@ master: master.o common.o list.o
 
 clean:
 	rm -fv $(OBJ) $(BIN) $(SO)
-	$(MAKE) -C collector clean
+	$(MAKE) -C collector_tweets clean
