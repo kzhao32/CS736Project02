@@ -4,16 +4,18 @@ CFLAGS=-g -Wall -pedantic
 CXXFLAGS=$(CFLAGS) -std=c++11
 LDFLAGS=
 SO=followerCount_filter.so
-BIN=filler master bonsai_fe bonsai_be followerCount_fe followerCount_be
+
+BIN=	filler master bonsai_fe bonsai_be collector_rand followerCount_fe \
+	followerCount_be
 
 OBJ=	filler.o master.o bonsai_fe.o bonsai_be.o list.o common.o \
-	followerCount_fe.o followerCount_be.o
+	collector_rand.o followerCount_fe.o followerCount_be.o
 
 all: LDFLAGS+=-pthread -lmrnet -lxplat -ldl
 all: $(BIN) $(SO)
 	$(MAKE) -C collector_tweets
 
-ringonly: filler master
+ringonly: filler master collector_rand
 	$(MAKE) -C collector_tweets
 
 %.o: %.c
@@ -21,6 +23,9 @@ ringonly: filler master
 
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) $< $(LDFLAGS) -c -o $@
+
+collector_rand: collector_rand.o
+	$(CC) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
 bonsai_fe: bonsai_fe.o
 	$(CXX) $(CFLAGS) $^ $(LDFLAGS) -o $@
