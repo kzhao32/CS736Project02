@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
 #include <strings.h>
 #include <netdb.h>
 #include <arpa/inet.h>
@@ -311,9 +312,11 @@ int main(int argc, char **argv)
 	int exit_flag;
 	int rc;
 
-	if(argc != 3)
+	if(argc < 4)
 	{
-		printf("Usage: %s <master addr> <master port>\n", argv[0]);
+		printf(	"Usage: %s <master addr> <master port> " \
+			"<filler> [filler args...]\n",
+			argv[0] );
 
 		fatal_error("Invalid argument");
 	}
@@ -403,19 +406,20 @@ int main(int argc, char **argv)
 		}
 		else if(pid == 0)
 		{
-			rc = execlp(	"java",
-					"java",
-					"-jar",
-					"collector.jar",
-					BUF_PATH,
-					"5000",
-					NULL );
+			/* Allocate memory for the path to collector and its
+			 * arguments
+			 */
+			char **arg = malloc(sizeof(char *)*(argc-2));
+
+			memcpy(arg, argv+3, sizeof(char *)*(argc-2));
+
+			arg[argc-3] = NULL;
+			rc = execvp(arg[0], arg);
 
 			if(rc == -1)
 			{
 				fatal_error("exec() failed");
 			}
-			printf("FOO\n");
 
 			exit(1);
 		}
