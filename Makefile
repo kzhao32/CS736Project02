@@ -1,7 +1,7 @@
 CXX=g++
 CC=gcc
 CFLAGS=-g -Wall -pedantic
-CXXFLAGS=$(CFLAGS) -std=c++11
+CXXFLAGS=$(CFLAGS)
 LDFLAGS=
 SO=followerCount_filter.so
 BIN=filler master bonsai_fe bonsai_be followerCount_fe followerCount_be
@@ -48,3 +48,4 @@ master: master.o common.o list.o
 clean:
 	rm -fv $(OBJ) $(BIN) $(SO)
 	$(MAKE) -C collector clean
+#for CSL machine, use "make CFLAGS="-I$HOME/root/include -L$HOME/root/lib""
