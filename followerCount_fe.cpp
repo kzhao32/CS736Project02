@@ -15,9 +15,25 @@
 #include <iterator>
 #include <string>
 #include <sstream>
+#include <time.h>
 #include "followerCount_header.h"
 
 using namespace MRN;
+
+long int timediff(struct timespec start, struct timespec end)
+{
+	struct timespec diff;
+	// take the difference
+	if(end.tv_nsec < start.tv_nsec) { // if carry over
+		diff.tv_sec = end.tv_sec-start.tv_sec-1;
+		diff.tv_nsec = 1000000000+end.tv_nsec-start.tv_nsec;
+	}
+	else {
+		diff.tv_sec = end.tv_sec-start.tv_sec;
+		diff.tv_nsec = end.tv_nsec-start.tv_nsec;
+	}
+	return (1000000000*diff.tv_sec)+diff.tv_nsec;
+}
 
 bool saw_failure = false;
 void Failure_Callback( Event* evt, void* )
@@ -30,6 +46,10 @@ void Failure_Callback( Event* evt, void* )
 int main(int argc, char **argv)
 {
 	// main variables
+	long etime;
+	struct timespec start;
+	struct timespec stop;
+	clock_gettime(CLOCK_MONOTONIC, &start);
 	long followerCount = 0;
 	int tag, retval;
 	PacketPtr packet;
@@ -145,5 +165,8 @@ int main(int argc, char **argv)
 	if( tag == PROT_EXIT ) {
 		delete net;
 	}
+	clock_gettime(CLOCK_MONOTONIC, &stop);
+	etime = timediff(start, stop);
+	printf("etime = %ld nanoseconds\n", etime);
 	return 0;
 }
