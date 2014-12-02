@@ -334,8 +334,7 @@ int main(int argc, char **argv)
 	struct timespec stop;
 
 	/* not correct. need to consider seconds and overflow */
-	long elapsed_time;
-	long min_etime = LONG_MAX;
+	long etime;
 
 	if(argc < 4)
 	{
@@ -423,14 +422,9 @@ int main(int argc, char **argv)
 
 		clock_gettime(CLOCK_MONOTONIC, &stop);
 
-		elapsed_time = timediff(start, stop);
+		etime = timediff(start, stop);
 
-		if(elapsed_time < min_etime)
-		{
-			min_etime = elapsed_time;
-		}
-
-		printf("min etime = %ld\n", min_etime);
+		printf("etime = %ld\n", etime);
 
 		clock_gettime(CLOCK_MONOTONIC, &start);
 
