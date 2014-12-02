@@ -10,6 +10,8 @@
 #include <sys/socket.h>
 #include <sys/wait.h>
 #include <netinet/in.h>
+#include <time.h>
+#include <limits.h>
 
 #include "def.h"
 #include "common.h"
@@ -311,6 +313,11 @@ int main(int argc, char **argv)
 	int comm_socket;
 	int exit_flag;
 	int rc;
+	struct timespec start; 
+	struct timespec stop;
+	// not correct. need to consider seconds and overflow
+	long elapsed_time;
+	long minimum_elapsed_time = LONG_MAX;
 
 	if(argc < 4)
 	{
@@ -387,12 +394,21 @@ int main(int argc, char **argv)
 
 	exit_flag = 0;
 
+	clock_gettime(CLOCK_MONOTONIC, &start);
 	while(!exit_flag)
 	{
 		int pid;
 		int rc;
 
 		wait_for_token(comm_socket, &comm_addr, &comm_addr_len);
+		
+		clock_gettime(CLOCK_MONOTONIC, &stop);
+		elapsed_time = (stop.tv_nsec - start.tv_nsec);
+		if (elapsed_time < minimum_elapsed_time) {
+			minimum_elapsed_time = elapsed_time;
+		}
+		printf("minimum_elapsed time = %ld\n", minimum_elapsed_time);
+		clock_gettime(CLOCK_MONOTONIC, &start);
 
 		printf("Collecting data...\n");
 

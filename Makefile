@@ -2,7 +2,7 @@ CXX=g++
 CC=gcc
 CFLAGS=-g -Wall -pedantic
 CXXFLAGS=$(CFLAGS)
-LDFLAGS=
+LDFLAGS=-lrt
 SO=followerCount_filter.so
 
 BIN=	filler master bonsai_fe bonsai_be collector_rand followerCount_fe \
