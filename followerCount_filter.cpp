@@ -1,3 +1,13 @@
+/*
+ * Copyright Kai Zhao
+ * Borrowed code from Benjamin Welton's MRNet Twitter username search tutorial
+ * Borrowed code from Dorian C. Arnold, Philip C. Roth, and Barton P. Miller's 
+ *	MRNet IntegerAddition example
+ *
+ * This is the follower count filter:
+ * 	Sums up follower_counts
+ */
+
 /****************************************************************************
  * Copyright © 2003-2012 Dorian C. Arnold, Philip C. Roth, Barton P. Miller *
  *                  Detailed MRNet usage rights in "LICENSE" file.          *

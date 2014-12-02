@@ -1,3 +1,14 @@
+/*
+ * Copyright Kai Zhao
+ * Borrowed code from Benjamin Welton's MRNet Twitter username search tutorial
+ * Borrowed code from Dorian C. Arnold, Philip C. Roth, and Barton P. Miller's 
+ *	MRNet IntegerAddition example
+ *
+ * This starts the front end of follower count:
+ * 	Distributes keywords to all backends
+ *	Aggregate sum of follow_count from the backend and filter
+ */
+ 
 #include <cstdlib>
 #include <iostream>
 #include <mrnet/MRNet.h>
@@ -18,24 +29,27 @@ void Failure_Callback( Event* evt, void* )
 
 int main(int argc, char **argv)
 {
+	// main variables
 	long followerCount = 0;
 	int tag, retval;
 	PacketPtr packet;
 	
 	if(argc < 4)
-	{
+	{	// if no keywords are provided, then it will process all the tweets
 		fprintf(stderr, "Usage: %s <topology file> <backend_exe> <so_file> [<keyword1> <keyword2> <keyword3> ...]\n", argv[0]);
 		exit(-1);
 	}
 	
+	// extract user input and initialize variables
 	const char * topology_file = argv[1];
 	const char * backend_exe = argv[2];
 	const char * so_file = argv[3];
 	int keywordsLength = 0;
 	for(int i = 4; i < argc; i++) {
-		//std::cout << "argv[i].length is " << strlen(argv[i]) << std::endl;
 		keywordsLength += strlen(argv[i]) + 1;
 	}
+	// build string of keyword
+	//	String keyword = keyword1 + " " + keyword2 + " " + ...;
 	char * keywords = (char*) malloc(keywordsLength); 
 	for(int i = 4; i < argc; i++) {
 		strcat(keywords, argv[i]);
@@ -44,6 +58,7 @@ int main(int argc, char **argv)
 	std::cout << "keywords to be sent are: " << keywords << std::endl;
 	saw_failure = false;
 	
+	// create backend
 	Network * net = Network::CreateNetworkFE( topology_file, backend_exe, NULL );
 	if( net->has_Error() ) {
 		net->perror("Network creation failed");
@@ -62,6 +77,7 @@ int main(int argc, char **argv)
             delete net;
             return -1;
         }
+	// load filter
 	int filter_id = net->load_FilterFunc( so_file, "FollowersAdd" );
 	if( filter_id == -1 ){
 		fprintf( stderr, "Network::load_FilterFunc() failure\n" );
@@ -71,6 +87,7 @@ int main(int argc, char **argv)
 	Communicator * comm_BC = net->get_BroadcastCommunicator( );
 	Stream * stream = net->new_Stream( comm_BC, filter_id, SFILTER_WAITFORALL );
 	tag = PROT_STARTPROC;
+	// send keywords to backend, split by spaces
 	if( stream->send( tag, "%s", keywords) == -1 ){
 		fprintf( stderr, "stream::send() failure\n" );
 		return -1;
@@ -79,6 +96,8 @@ int main(int argc, char **argv)
 		fprintf( stderr, "stream::flush() failure\n" );
 		return -1;
 	}
+	
+	// wait for response
 	retval = stream->recv(&tag, packet);
 	if( retval == 0 ) {
 		//shouldn't be 0, either error or block for data, unless a failure occured
@@ -94,11 +113,14 @@ int main(int argc, char **argv)
 			return -1;
 		}
 	}
+	
+	// extract followerCount from response
 	if( packet->unpack( "%ld", &followerCount ) == -1 ){
 		fprintf( stderr, "stream::unpack() failure\n" );
 		return -1;
 	}
 	printf("followerCount = %ld\n", followerCount);
+	
 	// exit backend, clean up, and shutdown
 	if( saw_failure ) {
             fprintf( stderr, "FE: a network process has failed, killing network\n" );
@@ -116,7 +138,6 @@ int main(int argc, char **argv)
 	}
 	retval = ctl_stream->recv(&tag, packet);
 	if( retval == -1){
-		//recv error
 		fprintf( stderr, "stream::recv() failure\n" );
 		return -1;
 	}

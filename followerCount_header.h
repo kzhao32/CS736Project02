@@ -1,19 +1,15 @@
+/*
+ * Copyright Kai Zhao
+ * Borrowed code from Benjamin Welton's MRNet Twitter username search tutorial
+ * Borrowed code from Dorian C. Arnold, Philip C. Roth, and Barton P. Miller's 
+ *	MRNet IntegerAddition example
+ *
+ * This is followerCount_header:
+ * 	contains enums so FE knows what to pass and so BE knows what to do
+ */
+
 #include <vector>		//for std::vector
 #include <string>		//for std::string
-
-struct EncodedFollowerCountInfo {
-	long followerCount;
-};
-
-EncodedFollowerCountInfo EncodeFollowerCount(long follower_count) {
-	EncodedFollowerCountInfo ret;
-	ret.followerCount = follower_count;
-	return ret;
-}
-
-long DecodeFollowerCount(EncodedFollowerCountInfo info) {
-    return info.followerCount;
-}
 
 typedef enum { PROT_EXIT=FirstApplicationTag, 
                PROT_STARTPROC

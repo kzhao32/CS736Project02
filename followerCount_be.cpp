@@ -1,3 +1,14 @@
+/*
+ * Copyright Kai Zhao
+ * Borrowed code from Benjamin Welton's MRNet Twitter username search tutorial
+ * Borrowed code from Dorian C. Arnold, Philip C. Roth, and Barton P. Miller's 
+ *	MRNet IntegerAddition example
+ *
+ * This starts the back end of follower count:
+ * 	Reads /tmp/bonsai.dat
+ *	Aggregate followerCount from each tweet
+ */
+
 #include <signal.h>
 #include <unistd.h>
 #include <cstdlib>
@@ -16,19 +27,18 @@ using namespace MRN;
 
 int main(int argc, char **argv)
 {
+	// main variables
 	Stream* stream = NULL;
 	PacketPtr packet;
 	int tag;
 	int rc;
-
+	
+	/*
 	for(int i = 0; i < argc; i++)
 	{
 		std::cout << "ARGV[" << i << "]: " << argv[i] << std::endl;
 	}
-
-	Network* net = Network::CreateNetworkBE(argc, argv);
 	
-	/*
 	int pid;
 	pid = fork();
 	
@@ -38,7 +48,10 @@ int main(int argc, char **argv)
 		execlp("filler", "filler" , NULL);
 	}
 	*/
-
+	
+	Network* net = Network::CreateNetworkBE(argc, argv);
+	
+	// listen to FE
 	do {
 		rc = net->recv(&tag, packet, &stream);
 		if( rc == -1 ) {
@@ -49,8 +62,10 @@ int main(int argc, char **argv)
 		    // a stream was closed
 		    continue;
 		}
-		switch(tag) {
+		switch(tag) { // switch to execute or exit
 			case PROT_STARTPROC: {
+				long followerCount = 0;
+				// unpack keywords
 				char * keyword;
 				packet->unpack("%s", &keyword);
 				std::cout << "keywords unpacked are: " << keyword << std::endl;
@@ -60,12 +75,13 @@ int main(int argc, char **argv)
 					keywords.push_back(keywordTokens);
 					keywordTokens = strtok(NULL, " ");
 				}
-				long followerCount = 0;
+				// open data file
 				FILE * fd = fopen("/tmp/bonsai.dat", "r");
 				char text[textLength];
 				char numberOfFollowers[numberOfFollowersLength];
-				if (fd) {
+				if (fd) {	// while file is good
 					for (int i = 0; ; ++i) {
+						// read tweet and read follower_count
 						fseek(fd, i * totalTweetLength + timeMillisecLength + timeDateLength + screenNameLength, SEEK_SET);
 						fread(text, textLength, 1, fd);
 						fseek(fd, i * totalTweetLength + timeMillisecLength + timeDateLength + screenNameLength + textLength, SEEK_SET);
@@ -74,12 +90,14 @@ int main(int argc, char **argv)
 							break;
 						}
 						std::string textString(text);
+						// if no keywords, then sum all follower_count
 						if (keywords.size() == 0) {
 							followerCount += strtol(numberOfFollowers, NULL, 10);
 						}
+						// else only sum follower_count that contains tweet
 						for (unsigned int j = 0; j < keywords.size(); ++j) {
 							if (textString.find(keywords[j]) != std::string::npos) {
-								followerCount += strtoll(numberOfFollowers, NULL, 10);
+								followerCount += strtol(numberOfFollowers, NULL, 10);
 								break;
 							}
 						}
@@ -89,6 +107,7 @@ int main(int argc, char **argv)
 				} else {
 					std::cout << "error opening file: /tmp/bonsai.dat" << std::endl;
 				}
+				// send aggregate number of follower_count to FE
 				fprintf(stderr, "Number of followers found: %ld\n", followerCount);
 				if( stream->send(tag, "%ld", followerCount) == -1 ) {
 					fprintf( stderr, "BE: stream::send(%%ld) failure in PROT_STARTPROC\n" );
@@ -102,6 +121,7 @@ int main(int argc, char **argv)
 				}
 				break;
 			case PROT_EXIT:
+				// send reply and break loop if exit
 				if( stream->send(tag, "%d", 0) == -1 ) {
 					fprintf( stderr, "BE: stream::send(%%s) failure in PROT_EXIT\n" );
 				}
@@ -120,13 +140,13 @@ int main(int argc, char **argv)
 	// TODO: Find a better way to terminate filler
 	//kill(pid, SIGTERM);
 
+	// clean up and exit backend
 	if (stream != NULL) {
 		while(!stream->is_Closed()) {
 			sleep(1);
 		}
 		delete stream;
 	}
-
 	net->waitfor_ShutDown();
 	delete net;
 	return 0;
