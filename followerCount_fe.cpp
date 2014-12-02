@@ -18,7 +18,7 @@ void Failure_Callback( Event* evt, void* )
 
 int main(int argc, char **argv)
 {
-	int followerCount = 0;
+	long followerCount = 0;
 	int tag, retval;
 	PacketPtr packet;
 	
@@ -94,11 +94,11 @@ int main(int argc, char **argv)
 			return -1;
 		}
 	}
-	if( packet->unpack( "%d", &followerCount ) == -1 ){
+	if( packet->unpack( "%ld", &followerCount ) == -1 ){
 		fprintf( stderr, "stream::unpack() failure\n" );
 		return -1;
 	}
-	printf("followerCount = %d\n", followerCount);
+	printf("followerCount = %ld\n", followerCount);
 	// exit backend, clean up, and shutdown
 	if( saw_failure ) {
             fprintf( stderr, "FE: a network process has failed, killing network\n" );

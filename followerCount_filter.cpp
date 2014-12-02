@@ -11,7 +11,7 @@
 using namespace MRN;
 
 extern "C" {
-	const char * FollowersAdd_format_string = "%d";
+	const char * FollowersAdd_format_string = "%ld";
 	void FollowersAdd( std::vector< PacketPtr >& packets_in,
 			 std::vector< PacketPtr >& packets_out,
 			 std::vector< PacketPtr >& /* packets_out_reverse */,
@@ -19,15 +19,15 @@ extern "C" {
 			 PacketPtr& /* params */,
 			 const TopologyLocalInfo& )
 	{
-		int sum = 0;
+		long sum = 0;
 		for (unsigned int i = 0; i < packets_in.size(); ++i) {
 			PacketPtr cur_packet = packets_in[i];
-			int val;
-			cur_packet->unpack("%d", &val);
+			long val;
+			cur_packet->unpack("%ld", &val);
 			sum += val;
 		}
 		PacketPtr new_packet ( new Packet(packets_in[0]->get_StreamId(),
-					      packets_in[0]->get_Tag(), "%d", sum ) );
+					      packets_in[0]->get_Tag(), "%ld", sum ) );
 		packets_out.push_back( new_packet );
 	}
 } /* extern "C" */
