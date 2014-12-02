@@ -65,6 +65,24 @@ int read_all(int fd, void *buf, size_t count)
 	return (rc == -1)?-1:0;
 }
 
+long int timediff(struct timespec start, struct timespec end)
+{
+	struct timespec diff;
+
+	if(end.tv_nsec < start.tv_nsec)
+	{
+		diff.tv_sec = end.tv_sec-start.tv_sec-1;
+		diff.tv_nsec = 1000000000+end.tv_nsec-start.tv_nsec;
+	}
+	else
+	{
+		diff.tv_sec = end.tv_sec-start.tv_sec;
+		diff.tv_nsec = end.tv_nsec-start.tv_nsec;
+	}
+
+	return (1000000000*diff.tv_sec)+diff.tv_nsec;
+}
+
 node_addr *get_next_node(filler_ctx *ctx)
 {
 	list_node *node = ctx->node_list->head;
@@ -263,7 +281,6 @@ void wait_for_token(	int comm_socket,
 	close(rc);
 }
 
-
 void pass_token(filler_ctx *ctx)
 {
 	struct sockaddr_in next_addr;
@@ -313,11 +330,12 @@ int main(int argc, char **argv)
 	int comm_socket;
 	int exit_flag;
 	int rc;
-	struct timespec start; 
+	struct timespec start;
 	struct timespec stop;
-	// not correct. need to consider seconds and overflow
+
+	/* not correct. need to consider seconds and overflow */
 	long elapsed_time;
-	long minimum_elapsed_time = LONG_MAX;
+	long min_etime = LONG_MAX;
 
 	if(argc < 4)
 	{
@@ -395,19 +413,25 @@ int main(int argc, char **argv)
 	exit_flag = 0;
 
 	clock_gettime(CLOCK_MONOTONIC, &start);
+
 	while(!exit_flag)
 	{
 		int pid;
 		int rc;
 
 		wait_for_token(comm_socket, &comm_addr, &comm_addr_len);
-		
+
 		clock_gettime(CLOCK_MONOTONIC, &stop);
-		elapsed_time = (stop.tv_nsec - start.tv_nsec);
-		if (elapsed_time < minimum_elapsed_time) {
-			minimum_elapsed_time = elapsed_time;
+
+		elapsed_time = timediff(start, stop);
+
+		if(elapsed_time < min_etime)
+		{
+			min_etime = elapsed_time;
 		}
-		printf("minimum_elapsed time = %ld\n", minimum_elapsed_time);
+
+		printf("min etime = %ld\n", min_etime);
+
 		clock_gettime(CLOCK_MONOTONIC, &start);
 
 		printf("Collecting data...\n");
