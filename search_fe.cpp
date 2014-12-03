@@ -1,14 +1,14 @@
 /*
  * Copyright Kai Zhao
  * Borrowed code from Benjamin Welton's MRNet Twitter username search tutorial
- * Borrowed code from Dorian C. Arnold, Philip C. Roth, and Barton P. Miller's 
+ * Borrowed code from Dorian C. Arnold, Philip C. Roth, and Barton P. Miller's
  *	MRNet IntegerAddition example
  *
  * This starts the front end of search:
  * 	Distributes keywords to all backends
  *	Times when all BEs are done with search
  */
- 
+
 #include <cstdlib>
 #include <iostream>
 #include <mrnet/MRNet.h>
@@ -52,13 +52,13 @@ int main(int argc, char **argv)
 	clock_gettime(CLOCK_MONOTONIC, &start);
 	int tag, retval;
 	PacketPtr packet;
-	
+
 	if(argc < 4)
 	{	// if no keywords are provided, then it will process all the tweets
 		fprintf(stderr, "Usage: %s <topology file> <backend_exe> <so_file> [<keyword1> <keyword2> <keyword3> ...]\n", argv[0]);
 		exit(-1);
 	}
-	
+
 	// extract user input and initialize variables
 	const char * topology_file = argv[1];
 	const char * backend_exe = argv[2];
@@ -69,14 +69,14 @@ int main(int argc, char **argv)
 	}
 	// build string of keyword
 	//	String keyword = keyword1 + " " + keyword2 + " " + ...;
-	char * keywords = (char*) malloc(keywordsLength); 
+	char * keywords = (char*) malloc(keywordsLength);
 	for(int i = 4; i < argc; i++) {
 		strcat(keywords, argv[i]);
 		strcat(keywords, " ");
 	}
 	std::cout << "keywords to be sent are: " << keywords << std::endl;
 	saw_failure = false;
-	
+
 	// create backend
 	Network * net = Network::CreateNetworkFE( topology_file, backend_exe, NULL );
 	if( net->has_Error() ) {
@@ -115,7 +115,7 @@ int main(int argc, char **argv)
 		fprintf( stderr, "stream::flush() failure\n" );
 		return -1;
 	}
-	
+
 	// wait for response
 	retval = stream->recv(&tag, packet);
 	if( retval == 0 ) {
@@ -132,10 +132,10 @@ int main(int argc, char **argv)
 			return -1;
 		}
 	}
-	
+
 	// inform response response
 	printf("done\n");
-	
+
 	// exit backend, clean up, and shutdown
 	if( saw_failure ) {
             fprintf( stderr, "FE: a network process has failed, killing network\n" );
