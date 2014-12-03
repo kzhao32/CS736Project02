@@ -3,13 +3,14 @@ CC=gcc
 CFLAGS=-g -Wall -pedantic
 CXXFLAGS=$(CFLAGS)
 LDFLAGS=-lrt
-SO=followerCount_filter.so
+SO=followerCount_filter.so search_filter.so
 
 BIN=	filler master bonsai_fe bonsai_be collector_rand followerCount_fe \
-	followerCount_be
+	followerCount_be search_fe search_be
 
 OBJ=	filler.o master.o bonsai_fe.o bonsai_be.o list.o common.o \
-	collector_rand.o followerCount_fe.o followerCount_be.o
+	collector_rand.o followerCount_fe.o followerCount_be.o \
+	search_fe.o search_be.o
 
 all: LDFLAGS+=-pthread -lmrnet -lxplat -ldl
 all: $(BIN) $(SO)
@@ -36,11 +37,20 @@ bonsai_be: bonsai_be.o
 followerCount_fe: followerCount_fe.o
 	$(CXX) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
+followerCount_be: followerCount_be.o
+	$(CXX) $(CFLAGS) $^ $(LDFLAGS) -o $@
+
 followerCount_filter.so: followerCount_filter.cpp
 	$(CXX) $(CFLAGS) -shared -fPIC $^ $(LDFLAGS) -o $@
 
-followerCount_be: followerCount_be.o
+search_fe: search_fe.o
 	$(CXX) $(CFLAGS) $^ $(LDFLAGS) -o $@
+
+search_be: search_be.o
+	$(CXX) $(CFLAGS) $^ $(LDFLAGS) -o $@
+
+search_filter.so: search_filter.cpp
+	$(CXX) $(CFLAGS) -shared -fPIC $^ $(LDFLAGS) -o $@
 
 filler: filler.o common.o list.o
 	$(CC) $(CFLAGS) $^ $(LDFLAGS) -o $@

@@ -4,9 +4,9 @@
  * Borrowed code from Dorian C. Arnold, Philip C. Roth, and Barton P. Miller's 
  *	MRNet IntegerAddition example
  *
- * This starts the back end of follower count:
- * 	Reads /tmp/bonsai.dat
- *	Aggregate followerCount from each tweet
+ * This starts the back end of search:
+ *	Reads /tmp/bonsai.dat
+ *	Prints out date, user, and tweet message of whoever uses keywords
  */
 
 #include <signal.h>
@@ -14,7 +14,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <mrnet/MRNet.h>
-#include "followerCount_header.h"
+#include "search_header.h"
 
 #define timeMillisecLength (13 + 1) //"1415927476669".length() + strlen("\0") == 13 + 1;
 #define timeDateLength (28 + 1) // "Mon Dec 01 14:48:17 CST 2014".length() == 28
@@ -48,8 +48,7 @@ int main(int argc, char **argv)
 		}
 		switch(tag) { // switch to execute or exit
 			case PROT_STARTPROC: {
-				long followerCount = 0;
-				// unpack keywords
+			// unpack keywords
 				char * keyword;
 				packet->unpack("%s", &keyword);
 				std::cout << "keywords unpacked are: " << keyword << std::endl;
@@ -61,39 +60,38 @@ int main(int argc, char **argv)
 				}
 				// open data file
 				FILE * fd = fopen("/tmp/bonsai.dat", "r");
+				char timeDate[timeDateLength];
+				char screenName[screenNameLength];
 				char text[textLength];
-				char numberOfFollowers[numberOfFollowersLength];
 				if (fd) {	// while file is good
 					for (int i = 0; ; ++i) {
-						// read tweet and read follower_count
+						// read date, screenName, and tweet
+						fseek(fd, i * totalTweetLength + timeMillisecLength, SEEK_SET);
+						fread(timeDate, timeDateLength, 1, fd);
+						fseek(fd, i * totalTweetLength + timeMillisecLength + timeDateLength, SEEK_SET);
+						fread(screenName, screenNameLength, 1, fd);
 						fseek(fd, i * totalTweetLength + timeMillisecLength + timeDateLength + screenNameLength, SEEK_SET);
 						fread(text, textLength, 1, fd);
-						fseek(fd, i * totalTweetLength + timeMillisecLength + timeDateLength + screenNameLength + textLength, SEEK_SET);
-						fread(numberOfFollowers, numberOfFollowersLength, 1, fd);
 						if (feof(fd)) {
 							break;
 						}
 						std::string textString(text);
-						// if no keywords, then sum all follower_count
+						// if no keywords, then print out all tweets
 						if (keywords.size() == 0) {
-							followerCount += strtol(numberOfFollowers, NULL, 10);
+							printf("/tmp/bonsai.dat Line: %d; Time: %s; Username: %s; Text: %s\n", i+1, timeDate, screenName, text);
 						}
-						// else only sum follower_count that contains tweet
 						for (unsigned int j = 0; j < keywords.size(); ++j) {
 							if (textString.find(keywords[j]) != std::string::npos) {
-								followerCount += strtol(numberOfFollowers, NULL, 10);
+								printf("/tmp/bonsai.dat Line: %d; Time: %s; Username: %s; Text: %s\n", i+1, timeDate, screenName, text);
 								break;
 							}
 						}
-						//fprintf(stderr, "Number of l followers found: %d\n", followerCount);
 					}
 					fclose(fd);
 				} else {
 					std::cout << "error opening file: /tmp/bonsai.dat" << std::endl;
 				}
-				// send aggregate number of follower_count to FE
-				fprintf(stderr, "Number of followers found: %ld\n", followerCount);
-				if( stream->send(tag, "%ld", followerCount) == -1 ) {
+				if( stream->send(tag, "") == -1 ) {
 					fprintf( stderr, "BE: stream::send(%%ld) failure in PROT_STARTPROC\n" );
 					tag = PROT_EXIT;
 					break;
