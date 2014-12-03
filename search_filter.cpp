@@ -21,7 +21,7 @@
 using namespace MRN;
 
 extern "C" {
-	const char * Search_format_string = "";
+	const char * Search_format_string = "%ld";
 	void Search( std::vector< PacketPtr >& packets_in,
 			 std::vector< PacketPtr >& packets_out,
 			 std::vector< PacketPtr >& /* packets_out_reverse */,
@@ -29,8 +29,15 @@ extern "C" {
 			 PacketPtr& /* params */,
 			 const TopologyLocalInfo& )
 	{
+		long sum = 0;
+		for (unsigned int i = 0; i < packets_in.size(); ++i) {
+			PacketPtr cur_packet = packets_in[i];
+			long val;
+			cur_packet->unpack("%ld", &val);
+			sum += val;
+		}
 		PacketPtr new_packet ( new Packet(packets_in[0]->get_StreamId(),
-					      packets_in[0]->get_Tag(), "" ) );
+					      packets_in[0]->get_Tag(), "%ld", sum ) );
 		packets_out.push_back( new_packet );
 	}
 } /* extern "C" */

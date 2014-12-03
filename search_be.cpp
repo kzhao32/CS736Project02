@@ -48,7 +48,8 @@ int main(int argc, char **argv)
 		}
 		switch(tag) { // switch to execute or exit
 			case PROT_STARTPROC: {
-			// unpack keywords
+				long searchCount = 0;
+				// unpack keywords
 				char * keyword;
 				packet->unpack("%s", &keyword);
 				std::cout << "keywords unpacked are: " << keyword << std::endl;
@@ -78,10 +79,12 @@ int main(int argc, char **argv)
 						std::string textString(text);
 						// if no keywords, then print out all tweets
 						if (keywords.size() == 0) {
+							searchCount++;
 							printf("/tmp/bonsai.dat Line: %d; Time: %s; Username: %s; Text: %s\n", i+1, timeDate, screenName, text);
 						}
 						for (unsigned int j = 0; j < keywords.size(); ++j) {
 							if (textString.find(keywords[j]) != std::string::npos) {
+								searchCount++;
 								printf("/tmp/bonsai.dat Line: %d; Time: %s; Username: %s; Text: %s\n", i+1, timeDate, screenName, text);
 								break;
 							}
@@ -91,7 +94,8 @@ int main(int argc, char **argv)
 				} else {
 					std::cout << "error opening file: /tmp/bonsai.dat" << std::endl;
 				}
-				if( stream->send(tag, "") == -1 ) {
+				fprintf(stderr, "Number of tweets found: %ld\n", searchCount);
+				if( stream->send(tag, "%ld", searchCount) == -1 ) {
 					fprintf( stderr, "BE: stream::send(%%ld) failure in PROT_STARTPROC\n" );
 					tag = PROT_EXIT;
 					break;

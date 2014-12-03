@@ -50,6 +50,7 @@ int main(int argc, char **argv)
 	struct timespec start;
 	struct timespec stop;
 	clock_gettime(CLOCK_MONOTONIC, &start);
+	long searchCount = 0;
 	int tag, retval;
 	PacketPtr packet;
 	
@@ -133,8 +134,12 @@ int main(int argc, char **argv)
 		}
 	}
 	
-	// inform response response
-	printf("done\n");
+	// extract searchCount from response
+	if( packet->unpack( "%ld", &searchCount ) == -1 ){
+		fprintf( stderr, "stream::unpack() failure\n" );
+		return -1;
+	}
+	printf("searchCount = %ld\n", searchCount);
 	
 	// exit backend, clean up, and shutdown
 	if( saw_failure ) {
