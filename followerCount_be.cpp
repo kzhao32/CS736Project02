@@ -1,7 +1,7 @@
 /*
  * Copyright Kai Zhao
  * Borrowed code from Benjamin Welton's MRNet Twitter username search tutorial
- * Borrowed code from Dorian C. Arnold, Philip C. Roth, and Barton P. Miller's 
+ * Borrowed code from Dorian C. Arnold, Philip C. Roth, and Barton P. Miller's
  *	MRNet IntegerAddition example
  *
  * This starts the back end of follower count:
@@ -32,9 +32,9 @@ int main(int argc, char **argv)
 	PacketPtr packet;
 	int tag;
 	int rc;
-	
+
 	Network* net = Network::CreateNetworkBE(argc, argv);
-	
+
 	// listen to FE
 	do {
 		rc = net->recv(&tag, packet, &stream);
@@ -120,7 +120,7 @@ int main(int argc, char **argv)
 		}
 		fflush(stderr);
 	} while (tag != PROT_EXIT);
-	
+
 	// clean up and exit backend
 	if (stream != NULL) {
 		while(!stream->is_Closed()) {
